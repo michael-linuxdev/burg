@@ -18,6 +18,9 @@ Läuft als installierbare PWA (offline spielbar). Auf dem Handy im Browser öffn
 | `js/economy.js` | Tageslauf: Produktion, Essen, Beliebtheit, Bevölkerung, Ziele |
 | `js/combat.js` | Echtzeit: Angriffswellen, Feinde, Feuer, Wachen |
 | `js/units.js` | Eigene Truppen: Einheiten, Wegfindung über Mauern, Befehle, Kampf |
+| `js/maps.js` | Kartenformat der Kartenschmiede (Lauflängen-Gelände, Prüfung, eigene Karten als Mission) |
+| `js/editor.js` | Kartenschmiede: Gelände malen, Einstellungen, Testen, Teilen als Link oder Datei |
+| `js/playlog.js` | Spielprotokoll für Playtests (lokal, im Menü ansehen, kopieren, als Datei speichern, Notizen) |
 | `js/events.js` | Ereignisse (Seuche, Missernte, Wölfe, Blitz, Händler, Turnier, Festtag) und Markt |
 | `js/settings.js` | Einstellungen (Lautstärken, Grafikstufe, Starttempo, Vibration, Tutorial) |
 | `js/audio.js` | Prozedurale Musik und Geräusche (Web Audio API, keine Audiodateien) |
@@ -29,7 +32,8 @@ Läuft als installierbare PWA (offline spielbar). Auf dem Handy im Browser öffn
 | `manifest.webmanifest` | PWA-Manifest |
 | `icons/` | App-Icons |
 | `docs/DESIGN.md` | Alle Spielregeln, Zahlen und Formeln (Grundlage für die Unity-Portierung) |
-| `tests/` | Logik-Tests (headless) und Playwright-Tests: Smoke, Tutorial/Spielstände, Truppen, Welt, Screenshots |
+| `docs/MULTIPLAYER.md` | Konzept für einen asynchronen Mehrspielermodus (nicht eingebaut): Ablauf, Datenformate, Schutz gegen Schummeln, Backend-Vorschlag |
+| `tests/` | Logik-Tests (headless) und Playwright-Tests: Smoke, Tutorial/Spielstände, Truppen, Welt, Kartenschmiede, Screenshots |
 | `tools/sim.mjs` | Headless-Simulation mit Bot zum Abstimmen der Missionen |
 | `CNAME` | Eigene Domain für GitHub Pages |
 

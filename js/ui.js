@@ -7,8 +7,9 @@ function resize(){
   if(flip){TRANS=land;document.body.classList.toggle('land',land);zoom=1;terrKey='';weather=[];parts=[]}
   const refocus=flip||!wasW;
   vw=r.width;vh=r.height;cv.width=Math.round(vw*dpr);cv.height=Math.round(vh*dpr);
-  if(TRANS){const h=$('hud').getBoundingClientRect(),sr=$('stage').getBoundingClientRect();padL=h.right-sr.left+10;padR=10;padT=10;padB=10}
-  else{padL=0;padR=0;padT=$('hud').offsetHeight+14;padB=$('dock').offsetHeight+20}
+  const editing=typeof ED!=='undefined'&&ED.on;// Kartenschmiede: Leiste statt HUD und Dock
+  if(TRANS){const h=$(editing?'edbar':'hud').getBoundingClientRect(),sr=$('stage').getBoundingClientRect();padL=h.right-sr.left+10;padR=10;padT=10;padB=10}
+  else{padL=0;padR=0;padT=editing?14:$('hud').offsetHeight+14;padB=(editing?$('edbar'):$('dock')).offsetHeight+20}
   const nb=Math.max(8,Math.min((vw-padL-padR)/scN(),(vh-padT-padB)/srN()));
   if(flip||!wasW){baseCell=nb;terrKey='';cell=baseCell*zoom;ox=padL+((vw-padL-padR)-scN()*cell)/2;oy=padT+((vh-padT-padB)-srN()*cell)/2}
   else if(Math.abs(nb-baseCell)>.01){// Platz geändert (z. B. Werkzeugleiste): Feldgröße und Bildmitte beibehalten
@@ -43,7 +44,7 @@ function toastHtml(m){const e=m.match(EMO),ic=e?e[1]:'📜',t=e?m.slice(e[0].len
   return[`<span class="ti">${ic}</span><span class="tx"></span>`,t,kind]}
 function nextToast(){const el=$('toast');if(!tq.length){tBusy=false;el.classList.remove('show');return}tBusy=true;
   const[h,t,kind]=toastHtml(tq.shift());el.innerHTML=h;el.querySelector('.tx').textContent=t;el.dataset.kind=kind;el.classList.add('show');setTimeout(()=>{el.classList.remove('show');setTimeout(nextToast,220)},2400)}
-const GROUPS=[['Wohnen und Glaube',['haus','kapelle','brunnen','apotheke']],['Nahrung',['obst','farm','muehle','baecker']],['Rohstoffe',['holzf','stein','mine','weide']],['Lager und Handel',['lager','korn','ruest','markt']],['Waffen',['bogner','schmied','gerber']],['Burg',['mauer','tor','turm','kaserne']],['Wege',['bruecke']],['Werkzeug',['abriss']]];
+const GROUPS=[['Wohnen und Glaube',['haus','kapelle','brunnen','apotheke']],['Nahrung',['obst','farm','muehle','baecker']],['Rohstoffe',['holzf','stein','mine','weide']],['Lager und Handel',['lager','korn','ruest','markt']],['Waffen',['bogner','schmied','gerber']],['Burg',['mauer','tor','turm','kaserne','werkstatt']],['Wege',['bruecke']],['Werkzeug',['abriss']]];
 function buildCards(){
   const el=$('cards');el.innerHTML='';
   for(const[name,keys]of GROUPS){
@@ -120,6 +121,11 @@ function hint(){
   const sea=seasonOf(S.day),left=SLEN-((S.day-1)%SLEN);
   if(sea===3&&S.cold)return 'Deine Leute frieren. Holzfäller liefern Brennholz.';
   const sp=Object.keys(S.spill);if(sp.length)return 'Lager voll: '+sp.map(k=>RNAME[k]).join(', ')+' verfällt. Baue '+[...new Set(sp.map(k=>STORE_NAME[STORE[k]]))].join(' oder ')+'.';
+  if(S.fort&&!S.foeDown){
+    if(!count('werkstatt'))return 'Baue eine Belagerungswerkstatt („Burg“) und bilde im Hof Katapulte und Rammböcke aus.';
+    if(!S.units.some(u=>u.type==='kat'||u.type==='sram'))return 'Bilde im Hof Katapulte und Rammböcke aus. Katapulte schießen weiter als die Turmschützen.';
+    if(!S.units.some(u=>u.tgtB!=null))return 'Wähle im Truppenmodus deine Katapulte und tippe auf einen feindlichen Turm. Rammböcke gehören ans Tor.';
+  }
   if(S.ev.pest>0&&!count('apotheke'))return 'Seuche! Jeden Tag stirbt jemand. Eine Apotheke („Wohnen und Glaube“) heilt sie.';
   if(S.enemies.some(e=>e.type==='wolf'))return 'Wölfe streifen umher. Bogenschützen und Nahkämpfer vertreiben sie.';
   if(S.ev.harvest>0)return 'Missernte: Höfe und Obstgärten tragen noch '+S.ev.harvest+(S.ev.harvest===1?' Tag':' Tage')+' nur halb so viel. Am Markt kannst du Essen kaufen.';
@@ -163,7 +169,8 @@ function hud(force){
   const pb=$('ppb');pb.style.width=S.pp+'%';pb.style.background=S.pp>=50?'var(--good)':S.pp>=25?'var(--gold)':'var(--danger)';
   const tr=$('trend');tr.textContent=S.lastDelta>0?'▲':S.lastDelta<0?'▼':'';tr.className=S.lastDelta>0?'plus':'minus';
   const rd=$('raid');
-  if(S.enemies.length){rd.innerHTML='<i>⚔️</i><b>'+S.enemies.length+'</b><small>Feinde</small>';rd.className='war'}
+  const atk=S.enemies.filter(e=>!e.def).length;
+  if(atk){rd.innerHTML='<i>⚔️</i><b>'+atk+'</b><small>Feinde</small>';rd.className='war'}
   else if(S.nextRaid==null){rd.innerHTML='<i>🕊️</i><small>Friedlich</small>';rd.className='calm'}
   else{rd.innerHTML='<i>⚔️</i><small>in</small><b>'+S.nextRaid+'</b><small>'+(S.nextRaid===1?'Tag':'Tagen')+'</small>';rd.className=S.nextRaid<=3?'soon':''}
   const m=mission();
@@ -182,6 +189,7 @@ function info(r,c){
   const t=T(r,c);
   if(t.b){
     const b=t.b;
+    if(isFoe(b))return toast(B[b.type].n+': '+Math.max(0,Math.round(b.hp))+' von '+B[b.type].hp+' Lebenspunkten. Wähle Truppen und tippe darauf, um anzugreifen.');
     if(b.type==='keep')return toast(KEEP_LV[S.keepLv].n+': '+Math.ceil(S.keepHp)+' von '+S.keepMax+' Lebenspunkten. Fällt sie, ist das Spiel vorbei. Ausbauen kannst du im Hof.');
     const d=B[b.type];
     if(b.burn){if(S.res.gold>=2){S.res.gold-=2;b.burn=0;toast(d.n+' gelöscht. −2 💰')}else toast('Nicht genug Gold zum Löschen.');return}
@@ -209,6 +217,7 @@ cv.addEventListener('pointerdown',e=>{
   if(ptrs.size===2){if(gest&&gest.mode==='paint')undoEnd();boxR=null;const[a,b]=[...ptrs.values()];gest={mode:'pinch',d0:Math.hypot(a.x-b.x,a.y-b.y)||1,z0:zoom,mx:(a.x+b.x)/2,my:(a.y+b.y)/2};return}
   if(ptrs.size>2)return;
   gest={mode:'pending',sx:p.x,sy:p.y,ox0:ox,oy0:oy,last:''};
+  if(S.edit){gest.mode='edit';edPaintAt(p);return}
   if(sel&&B[sel]&&B[sel].drag&&!S.over&&!S.won){gest.mode='paint';undoBegin();paint(p,true)}
 });
 cv.addEventListener('pointermove',e=>{
@@ -216,6 +225,7 @@ cv.addEventListener('pointermove',e=>{
   if(gest.mode==='pinch'){if(ptrs.size<2)return;const[a,b]=[...ptrs.values()],d=Math.hypot(a.x-b.x,a.y-b.y),mx=(a.x+b.x)/2,my=(a.y+b.y)/2;
     ox+=mx-gest.mx;oy+=my-gest.my;gest.mx=mx;gest.my=my;zoomAt(mx,my,gest.z0*d/gest.d0);return}
   if(gest.mode==='paint'){paint(p,false);return}
+  if(gest.mode==='edit'){edPaintAt(p);return}
   const dx=p.x-gest.sx,dy=p.y-gest.sy;
   if(gest.mode==='pending'&&Math.hypot(dx,dy)>8)gest.mode=sel===TROOP?'box':'pan';
   if(gest.mode==='box'){boxR={x0:gest.sx,y0:gest.sy,x1:p.x,y1:p.y};return}
@@ -230,8 +240,9 @@ const endPtr=e=>{
 };
 cv.addEventListener('pointerup',endPtr);cv.addEventListener('pointercancel',endPtr);
 cv.addEventListener('wheel',e=>{e.preventDefault();const p=loc(e);zoomAt(p.x,p.y,zoom*Math.exp(-e.deltaY*.0015))},{passive:false});
+function edPaintAt(p){const t=tileAtP(p);if(!t)return;const k=t.join(',');if(k===gest.last)return;gest.last=k;edPaint(t[0],t[1])}
 function paint(p,first){const t=tileAtP(p);if(!t)return;const k=t.join(',');if(k===gest.last)return;gest.last=k;record(act(sel,t[0],t[1],!first));hud(true)}
-function tap(p){if(S.over||S.won)return;
+function tap(p){if(S.over||S.won||S.edit)return;
   if(sel===TROOP){troopTap(p);hud(true);return}
   if(!sel){const u=unitAtP(p);if(u){openTroops([u.id]);return}}
   const t=tileAtP(p);if(!t)return;if(!sel)info(t[0],t[1]);else{record(act(sel,t[0],t[1],false));hud(true)}}
@@ -263,6 +274,9 @@ function troopTap(p){
   const u=unitAtP(p);
   if(u&&!picked.has(u.id)){picked.add(u.id);AU.play('klick');troopBar();return}
   const t=tileAtP(p);if(!t)return;
+  // feindliches Gebäude antippen = angreifen
+  const fb=T(t[0],t[1]).b;if(isFoe(fb)&&list.length){const n=orderAttackB(list,t[0]*COLS+t[1]);marks.push({i:t[0]*COLS+t[1],t:0,foe:1});AU.play('klick');
+    toast(n?(n===1?'Greift ':'Greifen ')+B[fb.type].n+' an.'+(n<list.length?' Bogenschützen bleiben stehen – Pfeile richten an Mauern nichts aus.':''):'Bogenschützen richten an Mauern nichts aus. Nimm Katapulte, Rammböcke oder Nahkämpfer.');troopBar();return}
   if(!list.length){toast('Wähle zuerst Truppen aus: antippen oder einen Rahmen ziehen.');return}
   const i=t[0]*COLS+t[1],n=order(list,i);
   if(!n)toast('Dort kommen deine Truppen nicht hin.');
@@ -309,10 +323,11 @@ function brief(mi){
   document.querySelectorAll('#sizeseg button').forEach(b=>b.onclick=()=>{freeSize=b.dataset.size;document.querySelectorAll('#sizeseg button').forEach(x=>x.setAttribute('aria-pressed',x===b?'true':'false'))});
 }
 let freeSize='mittel';
-function newGame(mi){startGame(mi,mi<0?{size:freeSize}:{});resetView();zoom=1;setSpeed(SET.speed);refreshSel();resize();focusKeep();if(typeof tutMaybeStart==='function')tutMaybeStart()}
+function newGame(mi){startGame(mi,mi===CUSTOM?{map:curMap||S.custom}:mi<0?{size:freeSize}:{});resetView();zoom=1;setSpeed(SET.speed);refreshSel();resize();focusKeep();if(typeof tutMaybeStart==='function')tutMaybeStart()}
 H.won=()=>{
-  const next=S.mi+1<MISSIONS.length?S.mi+1:null;
-  modal('Mission geschafft','<p>„'+mission().n+'“ ist abgeschlossen. Deine Burg steht nach '+S.day+' Tagen stolzer da als je zuvor.</p>'+(next==null?'<p>Das war die letzte Mission. Im freien Spiel kannst du weiterbauen.</p>':''),
+  if(S.mi===CUSTOM){const map=S.custom;return modal('Geschafft!','<p>Du hast „'+map.n+'“ nach '+S.day+' Tagen gemeistert.</p>',[{t:'Nochmal',p:1,f:()=>playMap(map)},{t:'Menü',f:openMenu}])}
+  const next=S.mi>=0&&S.mi+1<MISSIONS.length?S.mi+1:null,last=S.mi===MISSIONS.length-1;
+  modal(last?'Rabenfels ist gefallen!':'Mission geschafft','<p>„'+mission().n+'“ ist abgeschlossen'+(last?'. Der Graf hat sich ergeben, und im Tal kehrt endlich Frieden ein. Das Volk feiert dich als Burgherrn.':'. Deine Burg steht nach '+S.day+' Tagen stolzer da als je zuvor.')+'</p>'+(next==null?'<p>Das war die letzte Mission. Im freien Spiel oder in der Kartenschmiede geht es weiter.</p>':''),
     next!=null?[{t:'Nächste Mission',p:1,f:()=>brief(next)},{t:'Menü',f:openMenu}]:[{t:'Freies Spiel',p:1,f:()=>brief(-1)},{t:'Menü',f:openMenu}]);
 };
 H.lost=()=>{
@@ -329,7 +344,7 @@ function openMenu(){
     const li=document.createElement('li'),b=document.createElement('button');b.disabled=!open;
     b.innerHTML=`<span class="no">${i+1}</span><span><span class="mt">${m.n}</span><span class="ms">${m.goals.map(([t,n])=>GOALTXT[t][0]+' '+n).join('  ')}</span></span><span class="st">${done?'✓ geschafft':open?'':'🔒'}</span>`;
     b.onclick=()=>brief(i);li.appendChild(b);ol.appendChild(li)});
-  renderSlots();
+  renderSlots();if(typeof renderMyMaps==='function')renderMyMaps();
   $('menu').style.display='flex';
 }
 $('cont').onclick=closeModal;$('free').onclick=()=>brief(-1);$('menuBtn').onclick=openMenu;
@@ -378,11 +393,12 @@ document.addEventListener('visibilitychange',()=>{if(document.hidden)AU.suspend(
 
 function loop(t){
   now=t/1000;const real=Math.min(.05,(t-lastT)/1000)||0;lastT=t;
-  if(S&&!S.over&&!S.won&&!uiPause&&speed>0){
+  if(typeof edTick==='function')edTick();
+  if(S&&!S.over&&!S.won&&!uiPause&&speed>0&&!S.edit){
     for(let i=0;i<speed;i++){step(real);if(S.won||S.over)break;updateLife(real)}
   }
-  arrows.forEach(a=>a.t+=real);arrows=arrows.filter(a=>a.t<.3);
-  draw(uiPause||!speed||!S||S.over||S.won?0:real*speed);if(S){hud();AU.setMood(S.enemies.length||(S.nextRaid!=null&&S.nextRaid<=1&&!S.over)?'war':'calm')}
+  arrows.forEach(a=>a.t+=real);arrows=arrows.filter(a=>a.t<(a.kind==='stone'?.7:.3));
+  draw(uiPause||!speed||!S||S.over||S.won?0:real*speed);if(S){hud();AU.setMood(S.enemies.some(e=>!e.def)||(S.nextRaid!=null&&S.nextRaid<=1&&!S.over)?'war':'calm')}
   requestAnimationFrame(loop);
 }
 const saved=loadSave();

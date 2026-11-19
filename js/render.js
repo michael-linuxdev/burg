@@ -15,7 +15,8 @@ const scN=()=>TRANS?ROWS:COLS,srN=()=>TRANS?COLS:ROWS;
 const sx=(tx,ty)=>ox+(TRANS?ty:tx)*cell,sy=(tx,ty)=>oy+(TRANS?tx:ty)*cell;
 const dispSide=s=>TRANS?({Norden:'Westen',Süden:'Osten',Westen:'Norden',Osten:'Süden'})[s]||s:s;
 let terr=null,terrKey='',parts=[],lights=[],glows=[],weather=[],SEASON=1,DARK=0,dk=null,dkg=null;
-const TOPL=()=>SEASON===3?'#F3F6F9':'#D3CEC1';
+let FOE=0;// zeichnet gerade die feindliche Burg (dunkler Stein, rote Banner)
+const TOPL=()=>SEASON===3?'#F3F6F9':FOE?'#9C9184':'#D3CEC1';
 const hash=(r,c)=>{let h=(r*73856093)^(c*19349663)^S.seed;h=Math.imul(h^h>>>13,1274126177);return((h^h>>>16)>>>0)/4294967296};
 function rr(g,x,y,w,h,rad){g.beginPath();if(g.roundRect)g.roundRect(x,y,w,h,rad);else g.rect(x,y,w,h)}
 function ell(g,x,y,rx,ry){g.beginPath();g.ellipse(x,y,Math.max(.1,rx),Math.max(.1,ry),0,0,7);g.fill()}
@@ -122,7 +123,7 @@ function cube(g,cx,cy,s){g.fillStyle=PAL.stoneD;g.fillRect(cx-s/2,cy-s*.45,s,s*.
 function flag(g,x,y,C,len){
   g.strokeStyle='#3B2A1A';g.lineWidth=1.5;line(g,x,y,x,y-len);
   const w=Math.sin(now*5)*C*.03,w2=Math.sin(now*5+1.5)*C*.03,t=y-len;
-  g.fillStyle=PAL.woad;g.beginPath();g.moveTo(x,t);g.quadraticCurveTo(x+C*.12,t+w,x+C*.26,t+w2);g.lineTo(x+C*.26,t+C*.14+w2);g.quadraticCurveTo(x+C*.12,t+C*.14+w,x,t+C*.14);g.closePath();g.fill();
+  g.fillStyle=FOE?'#8E1F1A':PAL.woad;g.beginPath();g.moveTo(x,t);g.quadraticCurveTo(x+C*.12,t+w,x+C*.26,t+w2);g.lineTo(x+C*.26,t+C*.14+w2);g.quadraticCurveTo(x+C*.12,t+C*.14+w,x,t+C*.14);g.closePath();g.fill();
   g.fillStyle=PAL.gold;g.beginPath();g.moveTo(x,t+C*.055);g.quadraticCurveTo(x+C*.12,t+C*.055+w,x+C*.26,t+C*.055+w2);g.lineTo(x+C*.26,t+C*.085+w2);g.quadraticCurveTo(x+C*.12,t+C*.085+w,x,t+C*.085);g.closePath();g.fill();
 }
 function person(g,x,y,C,col,carry,walk,hat){
@@ -154,7 +155,18 @@ function drawUnit(g,u,C,X,Y,on,f=1){
   const U=UNIT[u.type],mv=u.path&&u.path.length>0;
   if(on){g.strokeStyle='#FFD54A';g.lineWidth=2;g.beginPath();g.ellipse(X,Y+C*.1,C*(u.type==='knight'?.26:.17),C*.075,0,0,7);g.stroke()}
   g.save();if(f<0){g.translate(X,0);g.scale(-1,1);g.translate(-X,0)}
-  if(u.type==='knight'){
+  if(u.type==='sram'){const s=mv?Math.sin(now*6)*C*.01:0;
+    g.fillStyle=PAL.shadow;ell(g,X,Y+C*.12,C*.34,C*.07);g.fillStyle='#2B2620';circ(g,X-C*.2,Y+C*.08,C*.07);circ(g,X+C*.16,Y+C*.08,C*.07);
+    g.fillStyle='#7A5232';g.fillRect(X-C*.3,Y-C*.09+s,C*.56,C*.16);g.fillStyle=U.col;poly(g,[X-C*.32,Y-C*.09+s,X+C*.28,Y-C*.09+s,X+C*.2,Y-C*.3+s,X-C*.24,Y-C*.3+s]);
+    g.strokeStyle='rgba(40,25,10,.5)';g.lineWidth=1;for(let k=1;k<4;k++)line(g,X-C*.32+C*.15*k,Y-C*.09+s,X-C*.26+C*.13*k,Y-C*.3+s);
+    g.fillStyle='#5E3B1F';g.fillRect(X+C*.2,Y-C*.05+s,C*.22,C*.07);g.fillStyle='#9AA2AA';g.fillRect(X+C*.38,Y-C*.07+s,C*.07,C*.11);
+    g.fillStyle=PAL.woad;g.fillRect(X-C*.05,Y-C*.42+s,C*.12,C*.08);g.strokeStyle='#3B2A1A';line(g,X-C*.05,Y-C*.3+s,X-C*.05,Y-C*.44+s)}
+  else if(u.type==='kat'){const arm=u.cd>1/U.rate-.5?-.2:-1.1;// Arm schnellt nach dem Wurf nach vorn
+    g.fillStyle=PAL.shadow;ell(g,X,Y+C*.12,C*.3,C*.07);g.fillStyle='#2B2620';circ(g,X-C*.18,Y+C*.08,C*.065);circ(g,X+C*.18,Y+C*.08,C*.065);
+    g.fillStyle='#6B4A2A';g.fillRect(X-C*.26,Y-C*.02,C*.52,C*.08);g.strokeStyle='#5E3B1F';g.lineWidth=Math.max(1.5,C*.04);line(g,X-C*.12,Y,X,Y-C*.22);line(g,X+C*.12,Y,X,Y-C*.22);
+    g.save();g.translate(X,Y-C*.2);g.rotate(arm);g.strokeStyle='#8A5A33';g.lineWidth=Math.max(1.5,C*.035);line(g,0,0,C*.34,0);g.fillStyle='#4A3220';circ(g,C*.34,0,C*.05);if(arm<-1)g.fillStyle='#8C8A84',circ(g,C*.34,0,C*.035);g.restore();
+    g.fillStyle=PAL.woad;g.fillRect(X-C*.24,Y-C*.06,C*.06,C*.06)}
+  else if(u.type==='knight'){
     const s=mv?Math.sin(now*16)*C*.04:0;g.fillStyle=PAL.shadow;ell(g,X,Y+C*.1,C*.22,C*.05);
     g.strokeStyle='#3A2616';g.lineWidth=Math.max(1.2,C*.03);for(const[lx,ph]of[[-.13,1],[-.07,-1],[.08,-1],[.14,1]])line(g,X+C*lx,Y,X+C*lx+s*ph,Y+C*.1);
     g.fillStyle='#7A4E2D';ell(g,X,Y-C*.02,C*.18,C*.07);g.strokeStyle='rgba(0,0,0,.45)';g.lineWidth=1;g.beginPath();g.ellipse(X,Y-C*.02,C*.18,C*.07,0,0,7);g.stroke();
@@ -181,8 +193,9 @@ function layoutUnits(){
   if(ufc.size>S.units.length*2+8)for(const k of[...ufc.keys()])if(!S.units.some(u=>u.id===k))ufc.delete(k);
 }
 function drawWallish(g,x,y,C,b,nb){
-  if(b.type==='mauer')return drawWallBand(g,x,y,C,b,nb);
-  const t=b.type,tower=t==='turm',gate=t==='tor',d=B[t];
+  const bt=B[b.type].base||b.type;
+  if(bt==='mauer')return drawWallBand(g,x,y,C,b,nb);
+  const t=bt,tower=t==='turm',gate=t==='tor',d=B[b.type];
   const H=C*(tower?.64:gate?.44:.32),e=tower?C*.07:0,x0=x-e,w=C+e*2,top=y-H-e,dep=C+e,fy=top+dep,fh=y+C-fy;
   const oN=tower||!nb(-1,0),oS=tower||!nb(1,0),oW=tower||!nb(0,-1),oE=tower||!nb(0,1);
   if(oE){g.fillStyle=PAL.shadow;poly(g,[x0+w,top+C*.1,x0+w+C*.2,top+C*.3,x0+w+C*.2,y+C+C*.06,x0+w,y+C])}
@@ -210,6 +223,7 @@ function drawWallish(g,x,y,C,b,nb){
   if(f<.6){g.strokeStyle='rgba(30,20,10,.7)';g.lineWidth=1.2;g.beginPath();g.moveTo(x+C*.3,top+dep*.3);g.lineTo(x+C*.42,top+dep*.5);g.lineTo(x+C*.36,top+dep*.75);
     if(f<.3){g.moveTo(x+C*.7,top+dep*.2);g.lineTo(x+C*.6,top+dep*.45);g.lineTo(x+C*.72,top+dep*.7)}g.stroke()}
   if(f<1&&(tower||gate))bar(g,x,top-C*.18,C,f);
+  if(FOE&&tower)flag(g,x+C*.5,top+dep*.3,C,C*.45);
   if(DARK>.02&&g===ctx){if(tower)glows.push({x:x+C*.5,y:top+dep*.5,r:C*1.6,a:.8});if(gate){glows.push({x:x+C*.15,y:y+C*.75,r:C*1.1,a:.8});glows.push({x:x+C*.85,y:y+C*.75,r:C*1.1,a:.8})}}
   if(DARK>.2&&gate&&g===ctx)for(const tx of[.12,.88]){const fl=Math.sin(now*14+tx*9)*C*.015;g.fillStyle='#5E3B1F';g.fillRect(x+C*tx-1,y+C*.72,2,C*.12);g.fillStyle='#FFC23A';poly(g,[x+C*tx-C*.035,y+C*.72,x+C*tx,y+C*.62+fl,x+C*tx+C*.035,y+C*.72])}
 }
@@ -235,12 +249,12 @@ function drawWallBand(g,x,y,C,b,nb){
     if(px>=hx0-1&&px+m<=hx1+1&&!(inC&&cN))mer(px,ht-m*.45)}
   if(cN||cS)for(let i=0;i<4;i++){const py=y+C*(.125+i*.25)-m/2-H,inC=py+m>ht&&py<ht+k;
     if(py>=vy0-H-1&&py+m<=vy1-H+1&&!inC){mer(x+a-m*.15,py);mer(x+a+k-m*.85,py)}}
-  const f=b.hp/B.mauer.hp;
+  const f=b.hp/B[b.type].hp;if(FOE&&f<1)bar(g,x+C*.1,ht-C*.2,C*.8,f);
   if(f<.6){g.strokeStyle='rgba(30,20,10,.7)';g.lineWidth=1.2;g.beginPath();g.moveTo(x+C*.4,ht+k*.2);g.lineTo(x+C*.48,ht+k*.5);g.lineTo(x+C*.42,fy+H*.7);
     if(f<.3){g.moveTo(x+C*.62,ht+k*.15);g.lineTo(x+C*.56,ht+k*.6);g.lineTo(x+C*.64,fy+H*.5)}g.stroke()}
 }
 // Bergfried in drei Stufen: 0 Holzburg (Holz, Palisadenspitzen), 1 Steinburg, 2 Festung (größer, Ecktürme, zwei Banner)
-function drawKeep(g,x,y,C,lv=S?S.keepLv||0:0){
+function drawKeep(g,x,y,C,lv=S?S.keepLv||0:0,fb=null){
   const wood=lv===0,fort=lv===2,sc=fort?1.12:1;
   const cW=wood?'#7A5232':PAL.stoneD,cT=wood?'#9A7048':PAL.stone,cI=wood?(SEASON===3?'#F3F6F9':'#B08A5E'):TOPL();
   const x0=x-C*.22*sc-(sc-1)*C*.5,w=C*1.44*sc,gy=y+C*1.02,H=C*.8*sc,dep=C*1.1*sc,top=gy-H-dep,fy=gy-H;
@@ -268,7 +282,7 @@ function drawKeep(g,x,y,C,lv=S?S.keepLv||0:0){
     const r=C*.17;g.fillStyle=PAL.stoneD;g.fillRect(px-r,py-C*.08,r*2,C*.3);g.fillStyle=PAL.stone;ell(g,px,py-C*.08,r,r*.75);g.fillStyle=TOPL();ell(g,px,py-C*.1,r*.7,r*.5);
     g.fillStyle='#46525F';poly(g,[px-r,py-C*.1,px,py-C*.42,px+r,py-C*.1]);g.strokeStyle='rgba(30,25,18,.5)';g.lineWidth=1;g.beginPath();g.ellipse(px,py-C*.08,r,r*.75,0,0,7);g.stroke()}
   flag(g,ix+iw/2,it+C*.1,C,C*.55);if(fort)flag(g,ix+iw*.15,it+C*.18,C,C*.4);
-  if(S&&S.keepHp<S.keepMax)bar(g,x0,top-C*.3,w,S.keepHp/S.keepMax);
+  if(fb){if(fb.hp<fb.max)bar(g,x0,top-C*.3,w,fb.hp/fb.max)}else if(S&&S.keepHp<S.keepMax)bar(g,x0,top-C*.3,w,S.keepHp/S.keepMax);
   if(DARK>.02)glows.push({x:x+C*.5,y:y+C*.5,r:C*2.6,a:.9});
 }
 function flames(g,x,y,C){
@@ -278,6 +292,10 @@ function flames(g,x,y,C){
 }
 function drawB(g,x,y,C,b,nb,r,c,live){
   const t=b.type,d=B[t];
+  if(d.foe){// feindliche Burg: dunkler Stein, rote Banner
+    const keep=[PAL.stone,PAL.stoneD];PAL.stone='#8A8174';PAL.stoneD='#5E574E';FOE=1;
+    if(t==='fkeep')drawKeep(g,x,y,C,1,b);else drawWallish(g,x,y,C,b,nb);
+    FOE=0;PAL.stone=keep[0];PAL.stoneD=keep[1];return}
   if(d.wall)return drawWallish(g,x,y,C,b,nb);
   const active=!d.w||b.on;
   g.save();if(d.w&&!b.on)g.globalAlpha=.6;
@@ -487,9 +505,9 @@ function draw(dt){
   for(let sr=sr0;sr<=sr1;sr++){
     for(let sc=sc0;sc<=sc1;sc++){const r=TRANS?sc:sr,c=TRANS?sr:sc,t=T(r,c),x=ox+sc*C,y=oy+sr*C;
       if(t.t===TREE)drawTree(g,x,y,C,hash(r,c));else if(t.t===ROCK||t.t===IRON)drawRock(g,x,y,C,hash(r,c),t.t===IRON);
-      if(t.b){if(t.b.type==='keep')keepAt=[x,y];else drawB(g,x,y,C,t.b,nbAt(r,c),r,c,true)}}
+      if(t.b){if(t.b.type==='keep'||t.b.type==='fkeep')keepAt=[x,y,t.b,r,c];else drawB(g,x,y,C,t.b,nbAt(r,c),r,c,true)}}
     // Der Bergfried ist breiter als ein Feld: erst nach den übrigen Gebäuden seiner Reihe zeichnen, damit Mauern daneben nicht hineinragen
-    if(keepAt){drawKeep(g,keepAt[0],keepAt[1],C);keepAt=null}
+    if(keepAt){if(keepAt[2].type==='keep')drawKeep(g,keepAt[0],keepAt[1],C);else drawB(g,keepAt[0],keepAt[1],C,keepAt[2],()=>false,keepAt[3],keepAt[4],true);keepAt=null}
     rows[sr].sort((a,b)=>a[0]-b[0]).forEach(a=>a[1]());
   }
   // Partikel (in Bildschirmfeldern)
@@ -502,11 +520,12 @@ function draw(dt){
     else{g.fillStyle='#C9A06A';g.fillRect(px,py,2,2)}}
   // Pfeile im Bogen
   // Höhe von Schütze und Ziel (Mauer, Turm, Bergfried) wird auf dem Bildschirm nach oben abgetragen
-  for(const a of arrows){if(a.t>.2)continue;const p=Math.min(1,a.t/.18);
+  for(const a of arrows){const dur=a.kind==='stone'?.6:.18;if(a.t>dur+.02)continue;const p=Math.min(1,a.t/dur);
     const x1=TRANS?a.y1:a.x1,y1=(TRANS?a.x1:a.y1)-a.l1-.25,x2=TRANS?a.y2:a.x2,y2=(TRANS?a.x2:a.y2)-a.l2-.12;
     const ax=x1+(x2-x1)*p,ay=y1+(y2-y1)*p-Math.sin(Math.PI*p)*.5;
     const dx=x2-x1,dy=(y2-y1)-Math.cos(Math.PI*p)*.5*Math.PI,an=Math.atan2(dy,dx),L=C*.2;
-    const hx=ox+ax*C,hy=oy+ay*C;g.strokeStyle=a.foe?'#4A1410':'#3B2A1A';g.lineWidth=1.4;line(g,hx-Math.cos(an)*L,hy-Math.sin(an)*L,hx,hy);
+    const hx=ox+ax*C,hy=oy+ay*C;if(a.kind==='stone'){g.fillStyle='#6E6C65';circ(g,hx,hy-Math.sin(Math.PI*p)*C*.4,C*.07);continue}
+    g.strokeStyle=a.foe?'#4A1410':'#3B2A1A';g.lineWidth=1.4;line(g,hx-Math.cos(an)*L,hy-Math.sin(an)*L,hx,hy);
     g.strokeStyle=a.foe?'#D04A3A':'#EDE4CC';line(g,hx-Math.cos(an)*L,hy-Math.sin(an)*L,hx-Math.cos(an)*L*.7,hy-Math.sin(an)*L*.7)}
   drawOrders(g,C,dt);
   // Wetter
@@ -525,7 +544,7 @@ function draw(dt){
     if(s2==='Norden')gr=g.createLinearGradient(0,oy,0,oy+D);if(s2==='Süden')gr=g.createLinearGradient(0,oy+MH,0,oy+MH-D);
     if(s2==='Westen')gr=g.createLinearGradient(ox,0,ox+D,0);if(s2==='Osten')gr=g.createLinearGradient(ox+MW,0,ox+MW-D,0);
     gr.addColorStop(0,`rgba(190,40,30,${al})`);gr.addColorStop(1,'rgba(190,40,30,0)');g.fillStyle=gr;g.fillRect(ox,oy,MW,MH)}
-  if(S.enemies.length){g.fillStyle='rgba(110,30,10,.07)';g.fillRect(ox,oy,MW,MH)}
+  if(S.enemies.some(e=>!e.def)){g.fillStyle='rgba(110,30,10,.07)';g.fillRect(ox,oy,MW,MH)}
   const vg=g.createRadialGradient(ox+MW/2,oy+MH/2,Math.min(MW,MH)*.45,ox+MW/2,oy+MH/2,Math.hypot(MW,MH)*.6);
   vg.addColorStop(0,'rgba(20,25,10,0)');vg.addColorStop(1,'rgba(20,25,10,.3)');g.fillStyle=vg;g.fillRect(ox,oy,MW,MH);
   g.restore();
@@ -533,7 +552,8 @@ function draw(dt){
 // Befehle sichtbar machen: Ziele der ausgewählten Truppen, angegriffene Feinde, frische Befehle, Auswahlrahmen
 function drawOrders(g,C,dt){
   if(picked.size){const dests=new Set(),foes=new Set();
-    for(const u of S.units){if(!picked.has(u.id))continue;if(u.tgt)foes.add(u.tgt);else if(u.dest!=null)dests.add(u.dest)}
+    const bts=new Set();for(const u of S.units){if(!picked.has(u.id))continue;if(u.tgtB!=null)bts.add(u.tgtB);else if(u.tgt)foes.add(u.tgt);else if(u.dest!=null)dests.add(u.dest)}
+    for(const i of bts){const X=sx(i%COLS+.5,(i/COLS|0)+.5),Y=sy(i%COLS+.5,(i/COLS|0)+.5);g.strokeStyle='rgba(229,83,75,.95)';g.lineWidth=2.5;g.setLineDash([5,4]);g.strokeRect(X-C*.48,Y-C*.85,C*.96,C*1.3);g.setLineDash([])}
     g.strokeStyle='rgba(255,213,74,.9)';g.lineWidth=1.5;
     for(const i of dests){const tx=i%COLS+.5,ty=(i/COLS|0)+.5,X=sx(tx,ty),Y=sy(tx,ty)-tileLift(i)*C;g.beginPath();g.ellipse(X,Y+C*.08,C*.22,C*.09,0,0,7);g.stroke()}
     for(const e of foes){if(!S.enemies.includes(e))continue;const q=enemyXY(e);g.strokeStyle='rgba(229,83,75,.95)';g.lineWidth=2;g.beginPath();g.ellipse(q.X,q.Y+C*.08,C*.2,C*.08,0,0,7);g.stroke();
@@ -613,6 +633,6 @@ function updateLife(dt){
 }
 function resetView(){arrows=[];sel=null;walkers=new Map();wanderers=[];parts=[];weather=[];picked=new Set();boxR=null;marks=[];ufc.clear()}
 H.fx=(tx,ty,kind,n)=>fx(tx,ty,kind,n);
-H.shot=(x1,y1,x2,y2,foe,l1,l2)=>{arrows.push({x1,y1,x2,y2,foe:!!foe,l1:l1||0,l2:l2||0,t:0});AU.play('pfeil',.6)};
+H.shot=(x1,y1,x2,y2,foe,l1,l2,kind)=>{arrows.push({x1,y1,x2,y2,foe:!!foe,l1:l1||0,l2:l2||0,t:0,kind});AU.play(kind==='stone'?'ramme':'pfeil',.6)};
 H.sfx=n=>AU.play(n);
 H.side=s=>dispSide(s);

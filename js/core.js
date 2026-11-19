@@ -59,6 +59,8 @@ function genWide(seed,opt){
   for(let k=0;k<Math.round(1.2*A);k++){const[r,c]=pick(5);blob(r,c,1.6+R()*1.2,SWAMP,.85,GRASS)}
   if(R()<.7){const[r,c]=pick(5);blob(r,c,1.4+R()*.8,WATER,1)}
   for(let r=KR-2;r<=KR+2;r++)for(let c=KC-2;c<=KC+2;c++)if(inb(r,c))g[r*COLS+c].t=GRASS;
+  // Feindliche Burg (Angriffsmission): Platz freiräumen, später setzt buildFort die Bauten
+  const F=opt.fort;if(F)for(let r=F.r-F.rad-2;r<=F.r+F.rad+2;r++)for(let c=F.c-F.rad-2;c<=F.c+F.rad+2;c++)if(inb(r,c))g[r*COLS+c].t=GRASS;
   // Furt erzwingen: in den Furt-Reihen wird alles Wasser zu Sumpf
   if(fordRow>=0)for(let r=fordRow;r<fordRow+2;r++)for(let c=0;c<COLS;c++)if(g[r*COLS+c].t===WATER)g[r*COLS+c].t=SWAMP;
   // Jede Kartenseite braucht einen Weg zum Bergfried: sonst eine Schneise schlagen (Wald/Fels → Gras, Wasser → Sumpf)
@@ -72,6 +74,9 @@ function genWide(seed,opt){
     let r=KR,c=KC;const tr=side===0?0:side===1?ROWS-1:KR,tc=side===2?0:side===3?COLS-1:KC;
     while(r!==tr||c!==tc){if(r!==tr)r+=Math.sign(tr-r);else c+=Math.sign(tc-c);const x=g[r*COLS+c];if(!open(x.t))x.t=x.t===WATER?SWAMP:GRASS}
   }
+  // Weg vom eigenen Bergfried zum Tor der feindlichen Burg sicherstellen
+  if(F){const tr=F.r+(KR>F.r?F.rad+1:-F.rad-1),tc=F.c;let r=KR,c=KC;
+    while(r!==tr||c!==tc){if(c!==tc)c+=Math.sign(tc-c);else r+=Math.sign(tr-r);const x=g[r*COLS+c];if(!open(x.t))x.t=x.t===WATER?SWAMP:GRASS}}
   g[KI].b={type:'keep',id:0};
   return g;
 }
@@ -88,19 +93,39 @@ function setProg(p){store.set(PROG,JSON.stringify(p))}
 // Bergfried-Position für eine Kartengröße (klassisch 11/5, sonst etwas unterhalb der Mitte)
 function keepPos(cols,rows){return cols===12&&rows===20?[11,5]:[Math.round(rows*.55),Math.floor(cols/2)]}
 function newState(mi,opt={}){
-  const m=mi<0?FREE:MISSIONS[mi],seed=opt.seed!=null?opt.seed:mi<0?Math.floor(Math.random()*1e9):m.seed;
-  const ms=m.map||(mi<0&&MAPSIZE[opt.size])||MAPSIZE.klein,[kr,kc]=keepPos(ms.cols,ms.rows);
+  const m=mi===CUSTOM?customDef(opt.map):mi<0?FREE:MISSIONS[mi],seed=opt.seed!=null?opt.seed:mi<0?Math.floor(Math.random()*1e9):m.seed;
+  const ms=m.map||(mi<0&&MAPSIZE[opt.size])||MAPSIZE.klein,[kr,kc]=m.keep||keepPos(ms.cols,ms.rows);
   setMapSize(ms.cols,ms.rows,kr,kc);
-  return{ver:SAVE_VER,cols:COLS,rows:ROWS,kr:KR,kc:KC,mi,seed,day:1,clock:0,res:{...m.res},pop:m.pop,pp:60,lastDelta:0,tax:2,ration:2,eff:2,prevEff:2,variety:1,units:[],idle:m.pop,
+  const o={ver:SAVE_VER,cols:COLS,rows:ROWS,kr:KR,kc:KC,mi,seed,day:1,clock:0,res:{...m.res},pop:m.pop,pp:60,lastDelta:0,tax:2,ration:2,eff:2,prevEff:2,variety:1,units:[],idle:m.pop,
      nextRaid:m.raid?m.raid.start:null,raids:0,repelled:0,raidSide:null,raidActive:false,fireDays:0,cold:false,
-     keepLv:0,keepHp:KEEP_LV[0].hp,keepMax:KEEP_LV[0].hp,spill:{},nid:1,gv:0,grid:genMap(seed),enemies:[],over:false,won:false,
+     keepLv:0,keepHp:KEEP_LV[0].hp,keepMax:KEEP_LV[0].hp,spill:{},nid:1,gv:0,grid:m.custom?customGrid(m.custom):genMap(seed,{fort:m.fort}),enemies:[],over:false,won:false,
      ev:{cool:EVENT_COOL,pest:0,harvest:0,pending:null,log:[]}};
+  if(m.day){o.day=m.day}
+  if(m.custom)o.custom=m.custom;// eigene Karte reist im Spielstand mit
+  if(m.fort)buildFort(o,m.fort);
+  return o;
+}
+// Feindliche Burg: Ring aus Mauern mit Türmen an Ecken und Seitenmitten, Tor zur eigenen Burg hin, Bergfried in der Mitte.
+// Verteidiger: Bogenschützen fest auf den Türmen, Wachen im Hof (verlassen die Burg nicht). Sie zählen nicht als Welle (w = −1).
+function buildFort(o,f){
+  const g=o.grid,R=f.rad,south=KR>f.r;o.foeDown=false;o.fort={r:f.r,c:f.c};
+  const mk=(type,r,c)=>{const hp=B[type].hp;g[r*COLS+c].b={type,id:o.nid++,hp,max:hp,on:false,burn:0}};
+  const towers=[];
+  for(let r=f.r-R;r<=f.r+R;r++)for(let c=f.c-R;c<=f.c+R;c++){if(!inb(r,c))continue;const d=Math.max(Math.abs(r-f.r),Math.abs(c-f.c));g[r*COLS+c].t=GRASS;if(d!==R){g[r*COLS+c].b=null;continue}
+    const gate=c===f.c&&r===f.r+(south?R:-R),corner=Math.abs(r-f.r)===R&&Math.abs(c-f.c)===R,mid=(Math.abs(r-f.r)===R&&c===f.c)||(Math.abs(c-f.c)===R&&r===f.r);
+    if(gate)mk('ftor',r,c);else if(corner||mid){mk('fturm',r,c);towers.push([r,c])}else mk('fmauer',r,c)}
+  mk('fkeep',f.r,f.c);
+  const foe=(type,r,c,hp,extra)=>o.enemies.push({w:-1,def:1,type,r,c,x:c+.5,y:r+.5,tr:null,tc:null,hp,max:hp,cd:0,ign:1,wait:0,atk:null,ang:0,climb:0,...extra});
+  for(const[r,c]of towers)for(let k=0;k<(f.archers||1);k++)foe('archer',r,c,16,{fixed:1});
+  const R2=rng(o.seed^0x5eed),inner=[];for(let r=f.r-R+1;r<f.r+R;r++)for(let c=f.c-R+1;c<f.c+R;c++)if(r!==f.r||c!==f.c)inner.push([r,c]);
+  for(let k=0;k<(f.guards||0);k++){const[r,c]=inner[Math.floor(R2()*inner.length)];foe('raider',r,c,22,{post:[r,c]})}
 }
 function startGame(mi,opt){
   S=newState(mi,opt);cds={};cacheGv=-1;undoClear();
   ensure();assignWorkers();save();
 }
-const mission=()=>S.mi<0?FREE:MISSIONS[S.mi];
+let customCache=null;
+const mission=()=>{if(S.mi===CUSTOM){if(!customCache||customCache.custom!==S.custom)customCache=customDef(S.custom);return customCache}return S.mi<0?FREE:MISSIONS[S.mi]};
 // ---------- Speichern ----------
 // Automatischer Spielstand unter AUTO, drei feste Plätze unter SLOT+n. Jeder Stand trägt S.ver;
 // migrate() hebt ältere Stände auf das aktuelle Format. Der alte Schlüssel SAVE (v3) wird beim
@@ -133,7 +158,7 @@ function loadSave(){
 }
 // Kurzbeschreibung eines Spielstands für das Menü
 function savePreview(o){
-  if(!o)return null;const m=o.mi<0?FREE:MISSIONS[o.mi];if(!m)return null;
+  if(!o)return null;const m=o.mi===CUSTOM?o.custom:o.mi<0?FREE:MISSIONS[o.mi];if(!m)return null;
   const sea=seasonOf(o.day);
   return{name:(o.mi<0?'':'Mission '+(o.mi+1)+': ')+m.n,day:o.day,season:SEAS[sea][0]+' '+SEAS[sea][1],saved:o.saved||0};
 }
@@ -158,6 +183,7 @@ const count=k=>S.grid.filter(t=>t.b&&t.b.type===k).length;
 const has=cost=>Object.entries(cost).every(([k,v])=>S.res[k]>=v);
 const costTxt=cost=>Object.entries(cost).map(([k,v])=>v+' '+RICON[k]).join(' ')||'–';
 const isWall=b=>b&&B[b.type]&&B[b.type].wall;
+const isFoe=b=>!!(b&&B[b.type]&&B[b.type].foe);
 const flammable=b=>b&&b.type!=='keep'&&B[b.type]&&!B[b.type].wall&&!B[b.type].nofire;
 const bump=()=>{S.gv++};
 const DIRS=[[1,0],[-1,0],[0,1],[0,-1]];
@@ -179,10 +205,10 @@ let distL=null;
 function ensure(){
   if(cacheGv===S.gv)return;cacheGv=S.gv;
   const sw=t=>t.t===SWAMP?2:1;// Sumpf kostet doppelt (Feinde sind dort halb so schnell)
-  dist=dijkstra(i=>{const t=S.grid[i];if(!walkT(t))return Infinity;if(isWall(t.b))return 1+t.b.hp/5;return sw(t)});
-  distL=dijkstra(i=>{const t=S.grid[i];if(!walkT(t))return Infinity;if(isWall(t.b))return B[t.b.type].gate?1+t.b.hp/5:3;return sw(t)});
+  dist=dijkstra(i=>{const t=S.grid[i];if(!walkT(t)||isFoe(t.b))return Infinity;if(isWall(t.b))return 1+t.b.hp/5;return sw(t)});
+  distL=dijkstra(i=>{const t=S.grid[i];if(!walkT(t)||isFoe(t.b))return Infinity;if(isWall(t.b))return B[t.b.type].gate?1+t.b.hp/5:3;return sw(t)});
   reach=new Uint8Array(N);prev=new Int32Array(N).fill(-1);reach[KI]=1;const q=[KI];
-  const pass=i=>{const t=S.grid[i];return walkT(t)&&(!isWall(t.b)||B[t.b.type].gate)};
+  const pass=i=>{const t=S.grid[i];return walkT(t)&&(!isWall(t.b)||(B[t.b.type].gate&&!isFoe(t.b)))};
   for(let h=0;h<q.length;h++){const u=q[h],ur=u/COLS|0,uc=u%COLS;
     for(const[dr,dc]of DIRS){const r=ur+dr,c=uc+dc;if(!inb(r,c))continue;const v=r*COLS+c;if(reach[v]||!pass(v))continue;reach[v]=1;prev[v]=u;q.push(v)}}
   S.grid.forEach((t,i)=>{if(t.b&&B[t.b.type]&&(B[t.b.type].prod||B[t.b.type].modes))t.b.cut=!reach[i]});
@@ -194,7 +220,7 @@ function nearOk(d,r,c){if(d.near==null)return true;for(let a=-d.r;a<=d.r;a++)for
 function occupied(r,c){return S.enemies.some(e=>(e.r===r&&e.c===c)||(e.tr===r&&e.tc===c))}
 function reason(k,r,c){
   const t=T(r,c),d=B[k];
-  if(d.tool)return t.b&&t.b.type!=='keep'?'':'Hier steht nichts zum Abreißen.';
+  if(d.tool)return t.b&&t.b.type!=='keep'&&!isFoe(t.b)?'':'Hier steht nichts zum Abreißen.';
   if(t.b)return 'Hier steht schon etwas.';
   if(d.bridge){if(t.t!==WATER)return 'Brücken gehören aufs Wasser.';if(!DIRS.some(([a,b])=>inb(r+a,c+b)&&(walkT(T(r+a,c+b))||T(r+a,c+b).t===WATER)))return 'Hier kann keine Brücke stehen.'}
   else if(!buildT(t))return t.t===SWAMP?'Im Sumpf kann nicht gebaut werden.':'Hier kann nicht gebaut werden.';

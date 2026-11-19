@@ -212,6 +212,8 @@ Ausbilden im Hof (`recruit(typ)`): braucht eine Kaserne, eine freie Person, Gold
 | Speerträger | 8 Gold, 1 Speer | 1 | 16 | 1,1 | 3 × 1 | 1,15 | 0,9 | ×3 Schaden gegen Rammböcke |
 | Schwertkämpfer | 15 Gold, 1 Schwert, 1 Lederrüstung | 2 | 26 | 0,85 | 6 × 1 | 0,9 | 0,6 | zäh und schlagkräftig |
 | Ritter | 40 Gold, 1 Schwert, 1 Lederrüstung | 3 | 34 | 2,3 | 7 × 1,2 | 1 | 0,6 | schnell, für Ausfälle |
+| Rammbock | 20 Gold, 15 Holz (Werkstatt) | 1 | 70 | 0,5 | 18 × 0,5 | 1 | 0,4 | nur gegen Gebäude |
+| Katapult | 35 Gold, 20 Holz, 10 Stein (Werkstatt) | 2 | 30 | 0,4 | 14 × 0,25 | 6 (Fernkampf) | 0,8 | nur gegen Gebäude, zielt selbst auf das nächste feindliche Gebäude in Reichweite |
 
 Schaden eines Schlags auf einen Feind = `Schaden · Rüstung des Feindes` (· 3 für Speerträger gegen Rammböcke). Erlittener Schaden einer Einheit = `Schaden · Rüstung der Einheit`.
 
@@ -240,7 +242,7 @@ Konter in Kürze:
 
 ## 8. Ziele und Missionen
 
-Zieltypen: `pop` (Einwohner ≥ n), `brot` (Brot auf Vorrat ≥ n), `raids` (abgewehrte Wellen ≥ n), `pp` (Beliebtheit ≥ n). Eine Mission ist gewonnen, sobald alle Ziele gleichzeitig erfüllt sind.
+Zieltypen: `pop` (Einwohner ≥ n), `brot` (Brot auf Vorrat ≥ n), `raids` (abgewehrte Wellen ≥ n), `pp` (Beliebtheit ≥ n), `schwert` (Schwerter auf Vorrat ≥ n), `day` (Tag n erreicht), `siege` (feindlicher Bergfried zerstört). Eine Mission ist gewonnen, sobald alle Ziele gleichzeitig erfüllt sind.
 
 | # | Name | Seed | Start | Einw. | Ziele | Angriffe |
 |---|---|---|---|---|---|---|
@@ -250,6 +252,33 @@ Zieltypen: `pop` (Einwohner ≥ n), `brot` (Brot auf Vorrat ≥ n), `raids` (abg
 | 4 | Flammen im Tal | 5519 | 60 Holz, 20 Stein, 20 Äpfel, 100 Gold, 4 Bögen | 16 | 4 Wellen, 50 Beliebtheit | ab 7, alle 6, Brandstifter ab Welle 1, Leitermänner ab Welle 3 |
 | 5 | Die Belagerung | 6623 | 80 Holz, 40 Stein, 30 Brot, 30 Äpfel, 170 Gold, 6 Bögen, 4 Speere | 18 | 5 Wellen | ab 8, alle 5, Brandstifter und Rammböcke ab Welle 2, feindliche Bogenschützen ab Welle 3, scale 1,4 |
 | – | Freies Spiel | zufällig | Basis + 5 Brot, 3 Bögen | 10 | – | ab 8, alle 7, Brand ab 3, Leiter ab 4, Ramm ab 5, Bogen ab 6 |
+
+### Belagerung (Angriffsmission)
+Eine Mission mit `fort: {r, c, rad, guards, archers}` hat eine feindliche Burg (`buildFort`): Mauerring mit Chebyshev-Radius `rad` um den feindlichen Bergfried (`fkeep`, 400 LP), Türme (`fturm`, 120 LP) an Ecken und Seitenmitten, Tor (`ftor`, 180 LP) auf der Seite zum eigenen Bergfried, sonst Mauern (`fmauer`, 60 LP). Feindliche Bauten lassen sich nicht abreißen, sind für Angreiferwellen unpassierbar und für eigene Leute geschlossen (auch das Tor). Der Kartengenerator räumt den Platz frei und schlägt bei Bedarf eine Schneise vom eigenen Bergfried zum Tor.
+
+- **Verteidiger** (`def`, Welle −1, zählen nicht als Angriff): je Turm `archers` Bogenschützen (16 LP, Reichweite 3,5 + 1 auf dem Turm, fallen mit dem Turm) und `guards` Wachen (22 LP) im Hof. Wachen greifen eigene Einheiten im Umkreis von 3,2 Feldern um ihren Posten an und kehren dann zurück.
+- **Gebäude angreifen** (`orderAttackB`): Nahkämpfer, Rammböcke und Katapulte; Bogenschützen nicht. Schaden je Schlag = `Schaden · Gebäudefaktor` (Belagerungsgerät 1, Nahkämpfer 0,3). Nahkämpfer schlagen von einem Nachbarfeld (Abstand ≤ 1,2), Katapulte aus bis zu 6,3 Feldern. Ein zerstörtes Tor oder eine zerstörte Mauer wird zu Gras.
+- Fällt der feindliche Bergfried, fallen alle Verteidiger, und das Ziel `siege` ist erreicht.
+- Belagerungswerkstatt (`werkstatt`): 20 Holz, 10 Stein. Ausbilden im Hof wie andere Truppen.
+
+| # | Name | Karte | Start | Einw. | Ziele | Angriffe |
+|---|---|---|---|---|---|---|
+| 6 | Über den Fluss | 20 × 28, Seed 7101 | 90 Holz, 20 Stein, 25 Äpfel, 110 Gold, 4 Bögen | 16 | 32 Einwohner, 3 Wellen | ab 10, alle 7, Brand ab 2, Leiter ab 3 |
+| 7 | Eisen aus den Bergen | 20 × 28, Seed 7207 | 100 Holz, 60 Stein, 30 Äpfel, 140 Gold, 4 Bögen, 2 Speere | 18 | 6 Schwerter, 3 Wellen | ab 9, alle 7, Bogen ab 2, Leiter ab 3, scale 1,1 |
+| 8 | Der lange Winter | 20 × 28, Seed 7313, Start Tag 14 | 110 Holz, 20 Stein, 40 Äpfel, 120 Gold, 4 Bögen | 18 | Tag 46, 28 Einwohner | ab 14, alle 8, Brand ab 2, Ramm ab 4 |
+| 9 | Die große Belagerung | 32 × 40, Seed 7419 | 140 Holz, 80 Stein, 30 Brot, 40 Äpfel, 220 Gold, 8 Bögen, 6 Speere | 22 | 6 Wellen | ab 10, alle 5, Brand ab 2, Leiter/Bogen/Ramm ab 3, scale 1,8 |
+| 10 | Sturm auf Rabenfels | 32 × 40, Seed 7523, eigener Bergfried (34, 16), Burg (8, 16), Radius 3, 8 Wachen, 2 Schützen je Turm | 160 Holz, 90 Stein, 40 Äpfel, 20 Brot, 320 Gold, 10 Eisen, 6 Bögen, 6 Speere, 4 Schwerter, 4 Lederrüstungen | 24 | feindlichen Bergfried zerstören | ab 10, alle 7, Leiter/Bogen ab 3, Ramm ab 4, scale 1,3 |
+
+### Eigene Karten (Kartenschmiede, `js/maps.js`)
+Format Version 1 (JSON), auch für den späteren Mehrspielermodus gedacht:
+
+```
+{ v: 1, n: Name, s: Beschreibung, cols, rows, kr, kc,
+  t: Gelände als Lauflängen "Wert*Anzahl" mit Punkt getrennt (Werte 0–6 wie Geländetabelle), z. B. "0*40.1*3",
+  res: {Rohstoff: Menge}, pop, goals: [[Typ, Ziel]], raid: {start, every, scale, fire, ram, ladder, archer} | null, events }
+```
+
+`validateMap` prüft und begrenzt alle Werte (8–40 Spalten, 8–48 Reihen, Bergfried mindestens 2 Felder vom Rand, Ziele aus `pop/brot/raids/pp/day/schwert`, höchstens 4). Gespielt wird eine Karte als Mission `CUSTOM` (−2); die Karte reist im Spielstand mit (`S.custom`). Eigene Karten zählen nicht zum Kampagnenfortschritt. Gespeichert unter `localStorage['zinnenwerk-maps']`. Teilen: JSON → `deflate-raw` (CompressionStream; ohne Unterstützung unkomprimiert, Präfix `j` statt `z`) → Base64url im URL-Fragment `#karte=…`. Beim Öffnen eines solchen Links wird die Karte geprüft, in die Liste übernommen und das Fragment entfernt. Export/Import als `.json`-Datei.
 
 ## 9. Speichern
 
@@ -283,6 +312,8 @@ Geräuschnamen für `sfx`: `bau`, `stein` (Mauerteil gesetzt), `abriss`, `feuer`
 Die Darstellung darf den Zustand nur über die Logik-Funktionen ändern (`act`, `startGame`, Hof-Einstellungen in `S.tax`/`S.ration`, Ausbilden, Befehle `order`/`orderAttack`, `trade`, `resolveEvent`).
 
 Nacht: Abdunklung höchstens 48 % (einfache Grafikstufe 40 %), Lichtquellen schneiden Lichtkegel heraus. Mauern verbinden sich optisch nicht mit dem Bergfried; der Bergfried wird nach den übrigen Gebäuden seiner Reihe gezeichnet.
+
+Spielprotokoll (`js/playlog.js`, reine Darstellung): umhüllt Logik-Funktionen (`startGame`, `act`, `recruit`, `order…`, `trade`, `resolveEvent`, `dayTick`, `spawnWave` …) und `H.say/won/lost`, ohne ihr Verhalten zu ändern, und schreibt Einträge `[Zeit, Tag, Art, Text]` nach `localStorage['zinnenwerk-playlog']` (höchstens 4000, älteste fallen weg). Dazu alle 15 s die Bildrate, Fehler und eigene Notizen. Abschaltbar in den Einstellungen.
 
 Das HUD (Statusleiste) ist reine Darstellung. Hochformat kompakt in drei schmalen Zeilen: Tagesmedaille mit Fortschrittsring und Tempo; Ressourcen-Plaketten als wischbare Zeile (gold umrandet ab 90 % Lagerfüllung, rot bei Verfall); Einwohner, Beliebtheitsleiste, Auftrag (Symbol, Leiste, Zahl) und Angriffs-Plakette. „▾“ klappt alles aus (alle Ressourcen, Zielbeschreibungen, freie Leute). Der Berater sitzt als Porträt unter der Leiste; seine Sprechblase öffnet sich bei jedem neuen Hinweis für 7 s, Antippen öffnet oder schließt sie. Quer und am Desktop steht alles in der 250 px breiten Seitenleiste. Meldungen erscheinen als Banner; Farbe nach Art (Gefahr rot, Erfolg grün).
 
@@ -353,3 +384,20 @@ Ergebnis nach Etappe 4 (Welt, Ereignisse, Markt; 20 Läufe, Mission 5 zusätzlic
 - **Jahreszeiten 10 statt 6 Tage** (Rückmeldung: Wechsel zu schnell). Der Winter fällt in Mission 5 damit genau in die späten, schweren Angriffe (Bot 35–48 %). Ausgleich: Mission 5 startet mit 30 Brot und 30 Äpfeln (vorher 10 und 20).
 - **Eisenvorkommen** auf den Kampagnenkarten liegt am Westfelsen: An anderen Stellen verdrängte es Bäume und Bauplätze und senkte Mission 5 um rund 10 Prozentpunkte.
 - Freies Spiel auf großen Karten (Bot, 60 Tage, je 4 Karten Mittel/Groß): keine Niederlage, 5–6 abgewehrte Angriffe, 60 Tage in unter 1 s Rechenzeit.
+
+Ergebnis nach Etappe 5 (20 Läufe; Missionen 1–5 unverändert):
+
+| Mission | Siege | Ø Tage | min. Bergfried-LP |
+|---|---|---|---|
+| 6 Über den Fluss | 100 % | 29 | 150 |
+| 7 Eisen aus den Bergen | 100 % | 30 | 150 |
+| 8 Der lange Winter | 100 % | 46 | 150 |
+| 9 Die große Belagerung | 70 % | 62 | 105 |
+| 10 Sturm auf Rabenfels | 85 % | 71 | 134 |
+
+Zielbereiche: 6–7 ≥ 80 %, 8 ≥ 70 %, 9–10 zwischen 50 und 90 %. Der Bot nutzt ab Mission 6 zusätzliche Regeln (Kaserne und Steinbrüche vor dem Mauerring, Bauplätze nur in Reichweite der eigenen Leute, mehr Holzfäller bei Holzmangel, Mine und Schwertschmiede beim Schwertziel, Goldüberschuss in Bögen vom Markt und Schützen) und bei der Belagerung eine feste Reihenfolge: Katapulte schleifen die Türme am Tor, dann Rammböcke und Nahkämpfer ans Tor, danach Nahkämpfer gegen die Wachen und Rammböcke gegen den Bergfried. Die Regeln für Missionen 1–5 sind unverändert, ihre Ergebnisse auch.
+
+Änderungen und warum:
+- **Mission 7**: 60 statt 30 Stein zum Start, sonst fehlte dem Bot der Stein für Kaserne und Schmied.
+- **Mission 9**: Angriffe alle 5 Tage, Stärke 1,8 – mit sinnvoll eingesetztem Gold gewann der Bot sonst fast immer.
+- **Mission 10**: Die Verteidiger allein machten kaum einen Unterschied (Katapulte schießen weiter als die Turmschützen). Schwierigkeit kommt aus den Ausfällen von Rabenfels gegen das eigene Lager (Stärke 1,3, mit Leitern, Bogenschützen und Rammböcken).

@@ -64,12 +64,12 @@ function dayTick(){
   eventTick();
   checkWin();save();
 }
-function goalState(){return mission().goals.map(([t,n])=>{const v=t==='pop'?S.pop:t==='brot'?S.res.brot:t==='raids'?S.repelled:Math.round(S.pp);return{t,n,v,ok:v>=n}})}
+function goalState(){return mission().goals.map(([t,n])=>{const v=t==='pop'?S.pop:t==='brot'?S.res.brot:t==='raids'?S.repelled:t==='schwert'?S.res.schwert:t==='day'?S.day:t==='siege'?(S.foeDown?1:0):Math.round(S.pp);return{t,n,v,ok:v>=n}})}
 function checkWin(){
   if(S.won||S.over||!mission().goals.length)return;
   if(goalState().every(x=>x.ok)){
     S.won=true;save();
-    const p=getProg();if(!p.done.includes(S.mi))p.done.push(S.mi);setProg(p);
+    if(S.mi>=0){const p=getProg();if(!p.done.includes(S.mi))p.done.push(S.mi);setProg(p)}
     H.sfx('sieg');H.won();
   }
 }

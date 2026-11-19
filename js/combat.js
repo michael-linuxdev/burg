@@ -47,6 +47,23 @@ function decide(e){
 // Höhe eines Feindes über dem Boden (Leitermänner beim Klettern und oben auf der Mauer)
 function enemyLift(e){const a=tileLift(e.r*COLS+e.c);if(e.tr==null)return a;const b=tileLift(e.tr*COLS+e.tc);
   if(e.climb>0)return a+(b-a)*(1-e.climb/ETYPE.ladder.climb);if(b>a)return b;return a+(b-a)*Math.max(0,1-Math.hypot(e.tc+.5-e.x,e.tr+.5-e.y))}
+// Verteidiger der feindlichen Burg: Bogenschützen bleiben auf ihrem Turm (Reichweite +1), Wachen greifen eigene
+// Einheiten im Umkreis von 3,2 Feldern um ihren Posten an und kehren danach zurück. Fällt der Turm, fällt der Schütze.
+function defTick(e,dt){
+  const et=ETYPE[e.type];e.cd-=dt;
+  if(e.fixed&&!isFoe(T(e.r,e.c).b)){e.hp=0;return}
+  const px=e.post?e.post[1]+.5:e.x,py=e.post?e.post[0]+.5:e.y;let tg=null,bd=e.fixed?et.range+1+(T(e.r,e.c).t===HILL?HILL_RANGE:0):3.2;
+  for(const u of S.units){const d=e.fixed?Math.hypot(u.x-e.x,u.y-e.y):Math.hypot(u.x-px,u.y-py);if(d<bd){bd=d;tg=u}}
+  if(et.range){if(tg&&e.cd<=0){e.cd=1;H.shot(e.x,e.y,tg.x,tg.y,true,enemyLift(e),unitLift(tg));hurtUnit(tg,et.dmg*unitCover(tg))}return}
+  if(tg&&Math.hypot(tg.x-e.x,tg.y-e.y)<.75){if(e.cd<=0){e.cd=1;hurtUnit(tg,et.dmg);H.sfx('treffer')}return}
+  const gx=tg?tg.x:px,gy=tg?tg.y:py;
+  if(e.tr==null){if(Math.hypot(gx-e.x,gy-e.y)<.15)return;let best=null,b2=Math.hypot(gx-(e.c+.5),gy-(e.r+.5))-.01;
+    for(const[dr,dc]of DIRS){const r=e.r+dr,c=e.c+dc;if(!inb(r,c))continue;const t=T(r,c);if(!walkT(t)||isWall(t.b)||(t.b&&t.b.type==='keep'))continue;const d=Math.hypot(gx-(c+.5),gy-(r+.5));if(d<b2){b2=d;best=[r,c]}}
+    if(!best){const dx=gx-e.x,dy=gy-e.y,d=Math.hypot(dx,dy),sp=Math.min(d,et.spd*dt);if(d>.01&&Math.abs(gx-(e.c+.5))<.6&&Math.abs(gy-(e.r+.5))<.6){e.x+=dx/d*sp;e.y+=dy/d*sp}return}
+    e.tr=best[0];e.tc=best[1];e.ang=Math.atan2(e.tr-e.r,e.tc-e.c)}
+  const tx=e.tc+.5,ty=e.tr+.5,dx=tx-e.x,dy=ty-e.y,d=Math.hypot(dx,dy),sp=et.spd*dt;
+  if(d<=sp){e.x=tx;e.y=ty;e.r=e.tr;e.c=e.tc;e.tr=null;e.tc=null}else{e.x+=dx/d*sp;e.y+=dy/d*sp}
+}
 function ignite(b){if(flammable(b)&&!b.burn){b.burn=0.01;H.sfx('feuer')}}
 function wellNear(r,c){for(let a=-3;a<=3;a++)for(let b=-3;b<=3;b++){if(inb(r+a,c+b)){const x=T(r+a,c+b).b;if(x&&x.type==='brunnen')return true}}return false}
 function hitKeep(n){S.keepHp-=n;if(S.keepHp<=0){S.keepHp=0;gameOver();return true}return false}
@@ -54,6 +71,7 @@ function killReward(e){S.res.gold+=e.type==='ram'?RAM_GOLD:KILL_GOLD;H.fx(e.x,e.
 function update(dt){
   ensure();
   for(const e of S.enemies){
+    if(e.def){defTick(e,dt);continue}
     if(e.wait>0){e.wait-=dt;continue}
     const et=ETYPE[e.type];e.cd-=dt;
     if(e.type==='fire'){e.ign-=dt;if(e.ign<=0){
@@ -106,7 +124,7 @@ function update(dt){
   if(S.enemies.some(e=>e.hp<=0)){
     const waves=new Set(S.enemies.map(e=>e.w));S.enemies=S.enemies.filter(e=>e.hp>0);
     for(const w of waves)if(w>0&&!S.enemies.some(e=>e.w===w)){S.repelled++;S.res.gold+=WAVE_GOLD;H.say('Angriff abgewehrt! +'+WAVE_GOLD+' 💰');checkWin();save()}
-    S.raidActive=S.enemies.length>0;
+    S.raidActive=S.enemies.some(e=>!e.def);
   }
 }
 // Ein Simulationsschritt: Uhr weiterdrehen, ggf. Tageswechsel, dann Echtzeit-Update.
