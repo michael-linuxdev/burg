@@ -45,11 +45,13 @@
   <div id="dock">
     <button class="fab glass" id="openBuild"><img id="buildIc" alt="">Bauen</button>
     <button class="fab glass" id="openCourt"><span aria-hidden="true">👑</span>Hof</button>
+    <button class="fab glass" id="openTroops" style="display:none"><span aria-hidden="true">⚔️</span>Truppen</button>
     <div id="toolbar" class="glass">
       <div class="ti" id="tIcon"></div>
       <div class="tt" id="tText"></div>
       <button class="btn icon" id="tUndo" aria-label="Rückgängig" title="Rückgängig">↶</button>
       <button class="btn primary" id="tDone">Fertig</button>
+      <div class="chips" id="chips" role="group" aria-label="Truppen auswählen"></div>
     </div>
   </div>
   <div class="sheetwrap" id="buildWrap"><div class="bsheet" role="dialog" aria-label="Bauen">
@@ -68,7 +70,7 @@
     <div class="row"><button class="btn" id="upgrade">Ausbauen</button></div><div class="sub" id="upsub"></div>
     <h3>Lager</h3><ul id="storesub" class="list"></ul>
     <h3>Verteidigung</h3><div class="sub" id="armysub"></div>
-    <div class="row"><button class="btn" id="recruit">Bogenschütze ausbilden (12 💰)</button></div>
+    <h3>Truppen ausbilden</h3><div class="ugrid" id="recruits"></div>
   </div></div>
 </div>
 
@@ -115,6 +117,7 @@
 <script src="js/core.js"></script>
 <script src="js/economy.js"></script>
 <script src="js/combat.js"></script>
+<script src="js/units.js"></script>
 <script src="js/settings.js"></script>
 <script src="js/audio.js"></script>
 <script src="js/render.js"></script>

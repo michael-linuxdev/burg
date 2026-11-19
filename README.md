@@ -16,7 +16,8 @@ Läuft als installierbare PWA (offline spielbar). Auf dem Handy im Browser öffn
 | `js/data.js` | Spieldaten: Gebäude, Feinde, Missionen, Steuern, Rationen |
 | `js/core.js` | Spielzustand, Kartengenerator, Wegfindung, Bauen, Arbeiter, Speichern |
 | `js/economy.js` | Tageslauf: Produktion, Essen, Beliebtheit, Bevölkerung, Ziele |
-| `js/combat.js` | Echtzeit: Angriffswellen, Feinde, Feuer, Bogenschützen |
+| `js/combat.js` | Echtzeit: Angriffswellen, Feinde, Feuer, Wachen |
+| `js/units.js` | Eigene Truppen: Einheiten, Wegfindung über Mauern, Befehle, Kampf |
 | `js/settings.js` | Einstellungen (Lautstärken, Grafikstufe, Starttempo, Vibration, Tutorial) |
 | `js/audio.js` | Prozedurale Musik und Geräusche (Web Audio API, keine Audiodateien) |
 | `js/render.js` | Canvas-Grafik: Gelände, Gebäude, Figuren, Partikel, Tag/Nacht, Wetter |
@@ -27,7 +28,7 @@ Läuft als installierbare PWA (offline spielbar). Auf dem Handy im Browser öffn
 | `manifest.webmanifest` | PWA-Manifest |
 | `icons/` | App-Icons |
 | `docs/DESIGN.md` | Alle Spielregeln, Zahlen und Formeln (Grundlage für die Unity-Portierung) |
-| `tests/` | Logik-Tests (headless) und Playwright-Tests: Smoke, Tutorial/Spielstände, Screenshots |
+| `tests/` | Logik-Tests (headless) und Playwright-Tests: Smoke, Tutorial/Spielstände, Truppen, Screenshots |
 | `tools/sim.mjs` | Headless-Simulation mit Bot zum Abstimmen der Missionen |
 | `CNAME` | Eigene Domain für GitHub Pages |
 

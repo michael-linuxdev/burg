@@ -13,14 +13,14 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-export const LOGIC = ['data.js', 'core.js', 'economy.js', 'combat.js'];
+export const LOGIC = ['data.js', 'core.js', 'economy.js', 'combat.js', 'units.js'];
 
 // Neuen, isolierten Spielkontext erzeugen. Math.random wird durch einen Seed-Zufall ersetzt (reproduzierbar).
 export function makeGame(seed = 1) {
   let a = seed >>> 0;
   const rand = () => { a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
   const M = Object.create(Math); M.random = rand;
-  const ctx = vm.createContext({ Math: M, console, JSON, Date, Object, Array, Uint8Array, Int32Array, Int16Array, Set, Map, Infinity, isFinite });
+  const ctx = vm.createContext({ Math: M, console, JSON, Date, Object, Array, Uint8Array, Int32Array, Int16Array, Float64Array, Set, Map, Infinity, isFinite });
   for (const f of LOGIC) vm.runInContext(fs.readFileSync(path.join(ROOT, 'js', f), 'utf8'), ctx, { filename: f });
   // Zugriff auf die globalen let/const-Bindungen des Kontexts
   const G = new Proxy({}, { get: (_, k) => vm.runInContext(k, ctx), set: (_, k, v) => { ctx.__v = v; vm.runInContext(`${k}=__v`, ctx); return true; } });
@@ -92,7 +92,11 @@ function bot(g) {
     // Burg ausbauen, sobald der Ring steht und es bezahlbar ist
     if (cnt('turm') >= 3 && !g.run('upgradeWhy()') && S.res.gold > 60) g.run('upgradeKeep()');
     // Bogenschützen ausbilden, Reserve 20 Gold
-    while (S.idle > 1 && S.res.gold >= 12 + 15 && S.archers < 3 + cnt('turm') * 3 && !g.run('recruit()'));
+    while (S.idle > 1 && S.res.gold >= 12 + 15 && S.units.length < 3 + cnt('turm') * 3 && !g.run('recruit()'));
+    // Speerträger gegen Rammböcke: hinter das Tor stellen
+    if (ram && S.res.speer > 0 && S.idle > 1 && S.res.gold >= 8 + 15 && S.units.filter(u => u.type === 'spear').length < 4 && !g.run("recruit('spear')")) {
+      const gi = (KR + R - 1) * COLS + KC; g.ctx.__gi = gi; g.run("order(S.units.filter(u=>u.type==='spear'),__gi)");
+    }
   }
   if (cnt('kapelle') < 2 && S.pp < 60 && build('kapelle')) return;
   // Brände löschen
@@ -112,7 +116,7 @@ export function playMission(mi, seed, { maxDays = 160, dt = 0.05, verbose = fals
     g.run(`step(${dt})`);
     t += dt;
     minKeep = Math.min(minKeep, S.keepHp); maxGold = Math.max(maxGold, S.res.gold);
-    if (verbose && S.clock < dt) days.push(`Tag ${S.day}: Einw ${S.pop}/${g.G.cap()} pp ${Math.round(S.pp)} Gold ${S.res.gold} Holz ${S.res.holz} Stein ${S.res.stein} Essen ${S.res.aepfel + S.res.brot} Schützen ${S.archers} Feinde ${S.enemies.length}`);
+    if (verbose && S.clock < dt) days.push(`Tag ${S.day}: Einw ${S.pop}/${g.G.cap()} pp ${Math.round(S.pp)} Gold ${S.res.gold} Holz ${S.res.holz} Stein ${S.res.stein} Essen ${S.res.aepfel + S.res.brot} Truppen ${S.units.length} Feinde ${S.enemies.length}`);
   }
   const S = g.G.S;
   return { g, won: S.won, lost: S.over, day: S.day, repelled: S.repelled, pop: S.pop, gold: S.res.gold, maxGold, minKeep: Math.round(minKeep), log: g.log, days };

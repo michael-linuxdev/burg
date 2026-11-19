@@ -1,6 +1,6 @@
 # Zinnenwerk – Spielregeln und Zahlenwerte
 
-Dieses Dokument beschreibt die Spielmechanik vollständig und unabhängig von der Darstellung, sodass eine spätere Unity-Portierung danach gebaut werden kann. Maßgeblich ist der Code in `js/data.js`, `js/core.js`, `js/economy.js` und `js/combat.js` (keine DOM-Zugriffe). Die Darstellung (`render.js`, `ui.js`) liest den Zustand nur und hängt sich über die Rückrufe in `H` ein.
+Dieses Dokument beschreibt die Spielmechanik vollständig und unabhängig von der Darstellung, sodass eine spätere Unity-Portierung danach gebaut werden kann. Maßgeblich ist der Code in `js/data.js`, `js/core.js`, `js/economy.js`, `js/combat.js` und `js/units.js` (keine DOM-Zugriffe). Die Darstellung (`render.js`, `ui.js`) liest den Zustand nur und hängt sich über die Rückrufe in `H` ein.
 
 ## 1. Zeit
 
@@ -13,7 +13,7 @@ Dieses Dokument beschreibt die Spielmechanik vollständig und unabhängig von de
 | Jahreszeit von Tag d | `floor((d − 1) / 6) mod 4` (0 Frühling … 3 Winter) |
 | Tag-Nacht-Zyklus | 6 Tage (`CYC`), rein optisch |
 
-Ablauf pro Simulationsschritt (`step(dt)`): Uhr um `dt` erhöhen; jedes Mal, wenn sie `DAY` überschreitet, `dayTick()` ausführen; danach `update(dt)` (Echtzeit: Feinde, Feuer, Schützen).
+Ablauf pro Simulationsschritt (`step(dt)`): Uhr um `dt` erhöhen; jedes Mal, wenn sie `DAY` überschreitet, `dayTick()` ausführen; danach `update(dt)` (Echtzeit: Feinde, Feuer, Wachen, Truppen).
 
 ## 2. Karte
 
@@ -53,7 +53,7 @@ Nach der Tagesproduktion (und nach Abriss eines Lagers oder Rückgängig) wird a
 | `kapelle` | Kapelle | 8 Stein, 30 Gold | – | +2 Beliebtheit/Tag, höchstens 3 Kapellen zählen |
 | `mauer` | Mauer | 1 Stein | – | 30 LP, blockiert alle |
 | `tor` | Tor | 4 Holz, 8 Stein | – | 150 LP, eigene Leute passieren |
-| `turm` | Turm | 10 Stein | – | 90 LP, bis 3 Bogenschützen, Reichweite 4,6 |
+| `turm` | Turm | 10 Stein | – | 90 LP, oben Platz für 3 Einheiten, Bogenschützen +1,4 Reichweite |
 | `kaserne` | Kaserne | 10 Holz, 6 Stein | – | erlaubt das Ausbilden von Truppen |
 | `lager` | Lager | 12 Holz | – | +100 Platz je Lager-Rohstoff |
 | `korn` | Kornkammer | 10 Holz, 4 Stein | – | +80 Platz für Brot und Äpfel |
@@ -68,7 +68,7 @@ Nach der Tagesproduktion (und nach Abriss eines Lagers oder Rückgängig) wird a
 Gebäude ohne Mauer-Eigenschaft haben 40 LP (nur für Feuer relevant). Bauregeln: Feld ist Gras, frei, kein Feind steht darauf oder läuft gerade hinein, Nähe-Bedingung erfüllt, Kosten vorhanden.
 
 ### Arbeiter
-Bei jeder Änderung werden Arbeiter neu verteilt: freie Leute = Einwohner − Bogenschützen. Gebäude mit Arbeitsbedarf werden nach Bau-Reihenfolge (ID) besetzt, sofern sie erreichbar sind und genug freie Leute da sind. Übrige Leute sind „frei“.
+Bei jeder Änderung werden Arbeiter neu verteilt: freie Leute = Einwohner − Truppen (jede Einheit zählt als eine Person). Gebäude mit Arbeitsbedarf werden nach Bau-Reihenfolge (ID) besetzt, sofern sie erreichbar sind und genug freie Leute da sind. Übrige Leute sind „frei“.
 
 ### Erreichbarkeit
 Produktionsgebäude arbeiten nur, wenn ein Weg für eigene Leute zum Bergfried existiert (Breitensuche über Gras; Mauern und Türme blockieren, Tore nicht). Abgeschnittene Gebäude („cut“) produzieren nichts.
@@ -81,9 +81,9 @@ Reihenfolge:
 3. **Essen**: Nahrung = Brot + Äpfel. Bedarf = `ceil(Einwohner · r)` mit `r` aus der Rationsstufe. Reicht die Nahrung nicht, sinkt die effektive Ration stufenweise. Verbraucht wird gleichmäßig über die vorhandenen Sorten (kleinster Vorrat zuerst). Abwechslung = Anzahl Sorten mit Vorrat > 0.
 4. **Brennholz** im Winter: `ceil(Einwohner / 10)` Holz pro Tag, sonst „Kälte“.
 5. **Steuern**: Gold += `round(Einwohner · g)`; Gold fällt nie unter 0. „Geschenk“ schaltet automatisch auf „Keine“, wenn das Gold nicht mehr für einen Tag reicht.
-   **Sold**: danach `ceil(Bogenschützen · 1)` Gold (`SOLD`). Reicht das Gold nicht, wird es auf 0 gesetzt und „Sold nicht bezahlt“ (−3 Beliebtheit) gilt bis zum nächsten bezahlten Tag.
+   **Sold**: danach Summe des Solds aller Einheiten (`UNIT[typ].sold`: Bogenschütze und Speerträger 1, Schwertkämpfer 2, Ritter 3 Gold). Reicht das Gold nicht, wird es auf 0 gesetzt und „Sold nicht bezahlt“ (−3 Beliebtheit) gilt bis zum nächsten bezahlten Tag.
 6. **Beliebtheit** (0–100): `pp += 0,5 · Σ Faktoren`.
-7. **Bevölkerung**: bei pp ≥ 50 Zuzug +1 (bei pp ≥ 75 +2) bis zur Kapazität; bei pp < 50 Wegzug −1 (bei pp < 25 −2), nie unter die Zahl der Bogenschützen. Kapazität = `Grundplätze der Burgstufe + 8 · Hütten` (12 / 20 / 28).
+7. **Bevölkerung**: bei pp ≥ 50 Zuzug +1 (bei pp ≥ 75 +2) bis zur Kapazität; bei pp < 50 Wegzug −1 (bei pp < 25 −2), nie unter die Zahl der Truppen. Kapazität = `Grundplätze der Burgstufe + 8 · Hütten` (12 / 20 / 28).
 8. **Angriffsplan** (siehe 7.) und Siegprüfung, dann automatisch speichern.
 
 ### Rationen und Steuern
@@ -118,10 +118,10 @@ Startwerte: Beliebtheit 60, Steuer „Niedrig“, Ration „Normal“.
 
 ## 7. Angriffe
 
-Missionsparameter `raid = {start, every, fire, ram, scale}`:
+Missionsparameter `raid = {start, every, fire, ram, archer, ladder, scale}`:
 - Erster Angriff nach `start` Tagen, danach alle `every` Tage. 3 Tage vorher melden Späher die Richtung (in den ersten zwei Wellen Norden/Osten/Westen, danach auch Süden).
 - Welle k: Anzahl `n = max(1, round((1 + 2k) · scale))`, Grund-LP `8 + 3k`.
-- Brandstifter ab Welle `fire`: `1 + floor((k − fire)/2)`, sie ersetzen Räuber. Rammböcke ab Welle `ram`: `1 + floor((k − ram)/2)`, zusätzlich.
+- Zusammensetzung (`waveList`): Brandstifter ab Welle `fire`, feindliche Bogenschützen ab Welle `archer`, Leitermänner ab Welle `ladder`, jeweils `1 + floor((k − ab)/2)`; sie ersetzen Räuber (mindestens 1 Räuber bleibt). Rammböcke ab Welle `ram`: `1 + floor((k − ram)/2)`, zusätzlich und als Letzte.
 - Feinde erscheinen auf freien Grasfeldern am Rand der gemeldeten Seite, im Abstand von 0,7 s.
 - Jeder Feind gehört zu seiner Welle (`w`). Eine Welle gilt als abgewehrt, sobald ihr letzter Feind fällt – auch wenn schon die nächste Welle angreift (Wellen können sich überlappen, z. B. Mission 5: alle 20 s).
 - Belohnung (`KILL_GOLD`, `RAM_GOLD`, `WAVE_GOLD`): 2 Gold pro Feind, 6 pro Rammbock, +10 Gold je abgewehrter Welle.
@@ -131,6 +131,15 @@ Missionsparameter `raid = {start, every, fire, ram, scale}`:
 | Räuber | 1 | 1,1 | 3 | 1 |
 | Brandstifter | 0,7 | 1,3 | 2 | 1 |
 | Rammbock | 3,5 | 0,45 | 14 (Bergfried: 10) | 0,34 |
+| Feindlicher Bogenschütze | 0,8 | 1,0 | 2 (Fernkampf, Reichweite 3,5) | 1 |
+| Leitermann | 0,9 | 1,1 | 2 | 1 |
+
+Die Rüstung wirkt auf allen Schaden durch eigene Truppen und Wachen.
+
+- **Feindliche Bogenschützen** bleiben stehen, sobald eine eigene Einheit (auch auf Mauer oder Turm) in Reichweite 3,5 ist, und schießen 1 Pfeil/s auf die nächste. **Deckung**: Steht die Einheit oben (nicht im Laufen), wirkt nur ein Teil des Schadens: Mauer und Bergfried ×0,5, Turm ×0,4 (`COVER`). Ohne Einheit in Reichweite schießen sie auf den Bergfried, wenn er in Reichweite ist, sonst laufen sie weiter.
+- **Leitermänner** nutzen eine eigene Kostenkarte `distL`: Mauern und Türme kosten nur 3 (Kletterzeit), Tore wie gehabt. Steht als Nächstes eine Mauer oder ein Turm an, legen sie 2,5 s die Leiter an (`climb`), steigen hinauf, laufen über das Mauerfeld und springen auf der Innenseite herab. Tore schlagen sie ein wie Räuber.
+- **Nahkampf**: Räuber, Brandstifter und Leitermänner bleiben stehen und schlagen (1 Schlag/s) eine eigene Einheit am Boden, die stillsteht und näher als 0,75 Felder ist (oder im Vorbeilaufen näher als 0,45). Einheiten oben auf Mauern werden im Nahkampf nicht angegriffen. Rammböcke kämpfen nicht.
+- Stürzt eine Mauer ein, erleiden alle Einheiten darauf 99 Schaden.
 
 ### Wegfindung der Feinde
 Dijkstra vom Bergfried aus über Gras. Kosten: freies Gras 1, Mauerfeld `1 + LP/5`, sonst unpassierbar (Gebäude ohne Mauer-Eigenschaft sind begehbar). Ein Feind geht stets auf das Nachbarfeld mit den geringsten Restkosten. Ist es eine Mauer/ein Tor/ein Turm, greift er es an (1 Schlag/s) bis es fällt; ist es der Bergfried, greift er diesen an. Die Kostenkarte wird bei jeder Gebäudeänderung neu berechnet, daher suchen Feinde automatisch die schwächste Stelle.
@@ -146,9 +155,45 @@ Dijkstra vom Bergfried aus über Gras. Kosten: freies Gras 1, Mauerfeld `1 + LP/
 Beim Ausbau steigen die aktuellen LP um die Differenz der Maximalwerte (Schaden bleibt erhalten). Ausbau im Hof-Menü.
 
 ### Verteidigung
-- Bergfried: LP nach Burgstufe. Fällt er, ist das Spiel verloren. Die Wachen der Burgstufe schießen immer (Reichweite 3,5).
-- Bogenschützen: 12 Gold (`ARCHER_GOLD`) und 1 Bogen (`UNIT.archer`), dazu 1 Gold Sold pro Tag, brauchen eine Kaserne und eine freie Person. Die ersten 3 stehen im Bergfried, dann je 3 pro Turm (Reichweite 4,6), der Rest im Bergfried.
-- Schussrate: 1 Pfeil pro Schütze und Sekunde, Ziel ist der nächste Feind in Reichweite, Schaden `3 · Rüstung`.
+- Bergfried: LP nach Burgstufe. Fällt er, ist das Spiel verloren. Die Wachen der Burgstufe schießen immer (Reichweite 3,5, 1 Pfeil pro Wache und Sekunde, Schaden `3 · Rüstung`).
+
+### Truppen (`js/units.js`)
+
+Ausbilden im Hof (`recruit(typ)`): braucht eine Kaserne, eine freie Person, Gold und die Waffen aus der Rüstkammer. Jede Einheit ist eine Figur auf der Karte (`S.units`) mit eigener Position, LP und Befehl.
+
+#### Kampfwerte und Konter (`UNIT`)
+
+| Einheit | Kosten | Sold/Tag | LP | Tempo | Schaden × Schläge/s | Reichweite | Rüstung | Besonderheit |
+|---|---|---|---|---|---|---|---|---|
+| Bogenschütze | 12 Gold, 1 Bogen | 1 | 10 | 1,2 | 3 × 1 | 3,2 (Fernkampf) | 1 | Reichweite auf Mauer +0,8, Turm +1,4, Bergfried +0,3 |
+| Speerträger | 8 Gold, 1 Speer | 1 | 16 | 1,1 | 3 × 1 | 1,15 | 0,9 | ×3 Schaden gegen Rammböcke |
+| Schwertkämpfer | 15 Gold, 1 Schwert, 1 Lederrüstung | 2 | 26 | 0,85 | 6 × 1 | 0,9 | 0,6 | zäh und schlagkräftig |
+| Ritter | 40 Gold, 1 Schwert, 1 Lederrüstung | 3 | 34 | 2,3 | 7 × 1,2 | 1 | 0,6 | schnell, für Ausfälle |
+
+Schaden eines Schlags auf einen Feind = `Schaden · Rüstung des Feindes` (· 3 für Speerträger gegen Rammböcke). Erlittener Schaden einer Einheit = `Schaden · Rüstung der Einheit`.
+
+Konter in Kürze:
+- **Rammböcke** (Rüstung 0,34) halten Pfeile gut aus → Speerträger (effektiv 3,1 je Schlag statt 1,0).
+- **Leitermänner** kommen über Mauern → Nahkämpfer auf oder hinter die Mauer stellen; Bogenschützen auf Türmen treffen sie beim Klettern.
+- **Feindliche Bogenschützen** schwächen Schützen auf der Mauer → Ritter oder Schwertkämpfer durch das Tor schicken (Ausfall).
+- **Räuber und Brandstifter** → Bogenschützen auf Türmen, Nahkämpfer am Tor.
+
+#### Bewegung
+- Felder: Bodenfelder (Gras, keine Mauer, Tore passierbar, nicht der Bergfried) und „erhöhte“ Felder (Mauer, Turm, Bergfried). Laufen auf erhöhten Feldern ist frei. Hinauf- oder hinabsteigen geht nur zwischen einem erhöhten Feld und einem Bodenfeld, das für eigene Leute mit dem Bergfried verbunden ist (`reach`). So kommt niemand über die Mauer nach draußen, der nicht auch durch ein Tor käme.
+- Wegfindung: Breitensuche (`unitPath`), 4 Nachbarn. Wird ein Weg unterwegs versperrt, wird neu gesucht; ohne Weg bleibt die Einheit stehen.
+- Plätze: Bodenfeld 3 Einheiten, Mauerfeld 2, Turm 3, Bergfried 5. Ein Befehl an eine Gruppe (`order`) verteilt sie per Breitensuche ab dem Zielfeld auf freie Plätze derselben Art (bei Mauern entlang der Mauer).
+- Höhe für Darstellung und Pfeile (`tileLift`): Mauer 0,36, Turm 0,64, Bergfried 0,85 Felder.
+- Neue Einheiten: Bogenschützen zuerst in den Bergfried (5 Plätze), dann auf freie Turmplätze; Nahkämpfer vor die Tür des Bergfrieds.
+
+#### Kampf
+- Ziel: befohlener Feind (`orderAttack`), sonst der nächste Feind in Reichweite. Nahkämpfer verteidigen zusätzlich ihren Posten: Feinde innerhalb von 2,2 Feldern um den Posten werden angegriffen (nicht von Mauern aus).
+- Ist das Ziel außer Reichweite, läuft die Einheit hinterher (Weg alle 0,5 s neu); Bogenschützen nur bis auf Reichweite. Ohne Ziel kehren Nahkämpfer zu ihrem Posten zurück.
+- Gefallene Einheiten werden entfernt, die Einwohnerzahl sinkt um 1 je Gefallenem (nie unter die Zahl der übrigen Truppen).
+
+#### Steuerung (Darstellung, `ui.js`)
+- Knopf „Truppen“ (sichtbar ab Kaserne oder erster Einheit) oder Antippen einer Einheit öffnet den Truppenmodus.
+- Ein Finger ziehen: Auswahlrahmen. Tippen auf eine Einheit: hinzufügen. Chips in der Werkzeugleiste: alle einer Art bzw. „Alle“ (nochmal tippen hebt die Auswahl auf).
+- Mit Auswahl: Tippen auf einen Feind → Angriffsbefehl; auf ein Feld, eine Mauer oder einen Turm → Bewegungsbefehl. Zwei Finger verschieben und zoomen.
 
 ## 8. Ziele und Missionen
 
@@ -159,15 +204,15 @@ Zieltypen: `pop` (Einwohner ≥ n), `brot` (Brot auf Vorrat ≥ n), `raids` (abg
 | 1 | Ein neuer Anfang | 1201 | Basis | 10 | 24 Einwohner | keine |
 | 2 | Brot für alle | 3307 | 60 Holz, 20 Äpfel | 14 | 40 Brot | ab Tag 10, alle 9, scale 0,6 |
 | 3 | Steinerne Wacht | 4411 | 50 Holz, 20 Stein, 20 Äpfel, 80 Gold, 4 Bögen | 14 | 3 Wellen | ab 7, alle 6 |
-| 4 | Flammen im Tal | 5519 | 60 Holz, 20 Stein, 20 Äpfel, 100 Gold, 4 Bögen | 16 | 4 Wellen, 50 Beliebtheit | ab 7, alle 6, Brandstifter ab Welle 1 |
-| 5 | Die Belagerung | 6623 | 80 Holz, 40 Stein, 10 Brot, 20 Äpfel, 150 Gold, 6 Bögen | 18 | 5 Wellen | ab 8, alle 5, Brandstifter und Rammböcke ab Welle 2, scale 1,4 |
-| – | Freies Spiel | zufällig | Basis + 5 Brot, 3 Bögen | 10 | – | ab 8, alle 7, Brand ab 3, Ramm ab 5 |
+| 4 | Flammen im Tal | 5519 | 60 Holz, 20 Stein, 20 Äpfel, 100 Gold, 4 Bögen | 16 | 4 Wellen, 50 Beliebtheit | ab 7, alle 6, Brandstifter ab Welle 1, Leitermänner ab Welle 3 |
+| 5 | Die Belagerung | 6623 | 80 Holz, 40 Stein, 10 Brot, 20 Äpfel, 150 Gold, 6 Bögen, 4 Speere | 18 | 5 Wellen | ab 8, alle 5, Brandstifter und Rammböcke ab Welle 2, feindliche Bogenschützen ab Welle 3, scale 1,4 |
+| – | Freies Spiel | zufällig | Basis + 5 Brot, 3 Bögen | 10 | – | ab 8, alle 7, Brand ab 3, Leiter ab 4, Ramm ab 5, Bogen ab 6 |
 
 ## 9. Speichern
 
 - Automatischer Spielstand: `localStorage['zinnenwerk-auto']`, nach jedem Tag, jeder Welle und beim Laden.
 - Drei feste Plätze: `zinnenwerk-slot-1` … `-3`, im Menü mit Vorschau (Mission, Tag, Jahreszeit, Zeitpunkt).
-- Jeder Stand trägt `ver` (aktuell 3) sowie `cols`, `rows`, `kr`, `kc`. `migrate()` hebt ältere Stände an: Version 1 (Schlüssel `zinnenwerk-v3`) bekommt 12 × 20 / Bergfried (11, 5), Feinde ohne Wellennummer werden der letzten Welle zugeordnet. Version 2 → 3: fehlende Rohstoffe (Eisen, Häute, Waffen) = 0, Burgstufe Holzburg, leeres `spill`. Ein alter v3-Stand wird beim ersten Start in den automatischen Spielstand übernommen; der alte Schlüssel bleibt unangetastet.
+- Jeder Stand trägt `ver` (aktuell 4) sowie `cols`, `rows`, `kr`, `kc`. `migrate()` hebt ältere Stände an: Version 1 (Schlüssel `zinnenwerk-v3`) bekommt 12 × 20 / Bergfried (11, 5), Feinde ohne Wellennummer werden der letzten Welle zugeordnet. Version 2 → 3: fehlende Rohstoffe (Eisen, Häute, Waffen) = 0, Burgstufe Holzburg, leeres `spill`. Version 3 → 4: die Zahl `archers` wird zu ebenso vielen Bogenschützen-Einheiten im Bergfried (`units`). Ein alter v3-Stand wird beim ersten Start in den automatischen Spielstand übernommen; der alte Schlüssel bleibt unangetastet.
 - Kampagnenfortschritt: `localStorage['zinnenwerk-progress'] = {done: [Missionsindizes]}`. Wird nie gelöscht.
 - Einstellungen: `localStorage['zinnenwerk-settings']` (Lautstärken, Grafikstufe, Starttempo, Vibration, Tutorial).
 - Mission n ist spielbar, wenn n = 0 oder Mission n − 1 geschafft ist.
@@ -184,18 +229,18 @@ Die Logik ruft nur diese Rückrufe auf (`H` in `core.js`):
 | `say(text)` | Meldung anzeigen |
 | `fx(x, y, art, n)` | Effekt an Kartenkoordinate (Staub, Rauch, Glut, Späne) |
 | `sfx(name)` | Geräusch abspielen |
-| `shot(x1, y1, x2, y2)` | Pfeilflug zeichnen |
+| `shot(x1, y1, x2, y2, feindlich, h1, h2)` | Pfeilflug zeichnen; `h1`/`h2` = Höhe von Schütze und Ziel in Feldern (Mauer, Turm, Bergfried), feindliche Pfeile andersfarbig |
 | `side(s)` | Himmelsrichtung für die Anzeige übersetzen |
 | `vibrate(muster)` | Vibration |
 | `won()`, `lost()` | Mission gewonnen bzw. Burg gefallen |
 
 Geräuschnamen für `sfx`: `bau`, `stein` (Mauerteil gesetzt), `abriss`, `feuer`, `treffer`, `ramme`, `einsturz`, `glocke` (Angriff), `sieg`, `niederlage`, `klick`. Die Darstellung ergänzt `pfeil`, `holz` und `steinbruch`.
 
-Die Darstellung darf den Zustand nur über die Logik-Funktionen ändern (`act`, `startGame`, Hof-Einstellungen in `S.tax`/`S.ration`, Ausbilden).
+Die Darstellung darf den Zustand nur über die Logik-Funktionen ändern (`act`, `startGame`, Hof-Einstellungen in `S.tax`/`S.ration`, Ausbilden, Befehle `order`/`orderAttack`).
 
 ## 11. Balancing
 
-Zusätzlich prüft `tests/logic.mjs` einzelne Regeln headless (Lager, Waffenkette, Burgausbau, Truppenkosten, Migration, Wellenzählung).
+Zusätzlich prüft `tests/logic.mjs` einzelne Regeln headless (Lager, Waffenkette, Burgausbau, Truppenkosten, Migration, Wellenzählung, Truppen-Wegfindung über Mauern, Leitermänner, Speer gegen Ramme, feindliche Bogenschützen).
 
 Werkzeug: `node tools/sim.mjs [mission|all] [läufe] [--log] [--check]`. Lädt die Logikdateien headless und lässt einen einfachen Bot spielen (feste Prioritätenliste: Holzfäller, Obst, Hütten nach Bedarf, Steinbruch, Brotkette, Mauerring mit Radius 3 um den Bergfried mit Tor im Süden und Türmen an Ecken und Seitenmitten, Kaserne, Brunnen bei Brandstiftern, Schützen bis 3 + 3 je Turm mit 15 Gold Reserve; Steuer runter unter 52 Beliebtheit, rauf über 68; ab Etappe 2 außerdem Bogenmacher, Lager/Kornkammer/Rüstkammer bei 85 % Füllstand und Burgausbau, sobald der Ring steht). `--check` prüft die Zielbereiche und läuft in CI.
 
@@ -228,3 +273,19 @@ Ergebnis nach Etappe 2 (Lager, Waffenkette, Burgstufen; 20 Läufe):
 | 5 | 70 % | 38 | 352 | 67 |
 
 Da Bogenschützen jetzt Bögen brauchen, bekommen Mission 3–5 einige Bögen zum Start (4/4/6), damit die erste Welle nicht an der neuen Werkstatt scheitert. Gold ist in Mission 3 und 4 knapp; in Mission 5 fließt ein Teil in den Burgausbau.
+
+Ergebnis nach Etappe 3 (Truppen als Einheiten, feindliche Bogenschützen und Leitermänner; 20 Läufe, Mission 5 zusätzlich 80 Läufe):
+
+| Mission | Siege | Ø Tage | Ø Gold am Ende | min. Bergfried-LP |
+|---|---|---|---|---|
+| 1 | 100 % | 15 | 125 | 150 |
+| 2 | 100 % | 11 | 141 | 150 |
+| 3 | 100 % | 23 | 34 | 150 |
+| 4 | 100 % | 30 | 14 | 147 |
+| 5 | 65 % (80 Läufe: 64 %) | 40 | 214 | 51 |
+
+Mission 4 bekommt Leitermänner ab Welle 3, Mission 5 feindliche Bogenschützen ab Welle 3 und 4 Speere zum Start. Der Bot stellt Speerträger auf, sobald Rammböcke drohen.
+
+Änderungen in dieser Etappe und warum:
+- **Gefallene zählen**: Vorher kehrte ein gefallener Soldat stillschweigend als Arbeiter zurück. Jetzt sinkt die Einwohnerzahl. Dadurch fiel Mission 5 auf 40 %: Die Simulation zeigte rund 14 tote Bogenschützen je Partie, fast alle durch feindliche Pfeile auf Mauern und Türmen.
+- **Deckung hinter Zinnen** (Pfeilschaden oben ×0,5, Turm ×0,4): Mauern und Türme schützen ihre Besatzung spürbar, wie man es erwartet. Mission 5 liegt damit bei rund 65 %.

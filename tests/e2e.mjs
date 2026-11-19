@@ -1,5 +1,5 @@
 // Ausführlicher Oberflächentest mit Screenshots (lokal): node tests/e2e.mjs [Zielordner]
-// Prüft Hoch-, Querformat und Desktop: Menü, Tag, Nacht, Winter, offene Menüs, laufender Angriff. Keine Konsolenfehler.
+// Prüft Hoch-, Querformat und Desktop: Menü, Tag, Nacht, Winter, offene Menüs, laufender Angriff, Truppenmodus. Keine Konsolenfehler.
 import fs from 'node:fs';
 import { startServer } from './serve.mjs';
 import { chromium, openPage, startMission, buildViaUi } from './helpers.mjs';
@@ -22,7 +22,7 @@ for (const [name, viewport] of VIEWS) {
     for (const k of ['holzf', 'obst', 'haus', 'farm', 'kaserne', 'brunnen', 'lager', 'korn', 'bogner', 'schmied', 'weide', 'gerber', 'ruest', 'mine']) await buildViaUi(page, k).catch(e => console.warn(e.message));
     if (await page.locator('#tDone').isVisible()) await page.locator('#tDone').click();
     // Mauerring per Code (Wischen ist schwer automatisch zu treffen)
-    await page.evaluate(() => { for (let r = KR - 3; r <= KR + 3; r++) for (let c = KC - 3; c <= KC + 3; c++) if (Math.max(Math.abs(r - KR), Math.abs(c - KC)) === 3) { const k = (r === KR + 3 && c === KC) ? 'tor' : (Math.abs(r - KR) === 3 && Math.abs(c - KC) === 3) ? 'turm' : 'mauer'; act(k, r, c, true); } S.archers = 4; assignWorkers(); });
+    await page.evaluate(() => { for (let r = KR - 3; r <= KR + 3; r++) for (let c = KC - 3; c <= KC + 3; c++) if (Math.max(Math.abs(r - KR), Math.abs(c - KC)) === 3) { const k = (r === KR + 3 && c === KC) ? 'tor' : (Math.abs(r - KR) === 3 && Math.abs(c - KC) === 3) ? 'turm' : 'mauer'; act(k, r, c, true); } S.pop = 30; S.res.bogen = 9; S.res.speer = 3; S.res.schwert = 4; S.res.leder = 4; S.res.gold = 400; for (const t of ['archer','archer','archer','archer','archer','archer','spear','spear','sword','knight']) recruit(t); });
     await page.waitForTimeout(800); await shot('tag');
     await page.locator('#openBuild').click(); await page.waitForTimeout(300); await shot('baumenue'); await page.locator('#buildWrap [data-close]').click();
     await page.locator('#openCourt').click(); await page.waitForTimeout(300); await shot('hof'); await page.locator('#courtWrap [data-close]').click();
@@ -30,7 +30,11 @@ for (const [name, viewport] of VIEWS) {
     await page.evaluate(() => { S.keepLv = 2; S.keepMax = 500; S.keepHp = 500; zoomAt(innerWidth / 2, innerHeight / 2, 1); }); await page.waitForTimeout(300); await shot('festung');
     await page.evaluate(() => { S.keepLv = 0; }); await page.waitForTimeout(300); await shot('holzburg-nacht'); await page.evaluate(() => { S.keepLv = 1; });
     await page.evaluate(() => { S.day = 20; S.clock = 1; }); await page.waitForTimeout(600); await shot('winter');
-    await page.evaluate(() => { S.day = 13; S.clock = 1; S.raidSide = 'Norden'; spawnWave(); }); await page.waitForTimeout(4500); await shot('angriff');
+    await page.evaluate(() => { S.day = 13; S.clock = 1; S.raids = 5; S.raidSide = 'Norden'; spawnWave(); }); await page.waitForTimeout(4500); await shot('angriff');
+    // Truppenmodus: alle auswählen, Nahkämpfer auf die Nordmauer schicken
+    await page.locator('#openTroops').click(); await page.locator('#chips .chip[data-t="alle"]').click();
+    await page.evaluate(() => order(S.units.filter(u => u.type !== 'archer'), (KR - 3) * COLS + KC)); await page.waitForTimeout(2500); await shot('truppen');
+    await page.locator('#tDone').click();
     // Bildrate während des Angriffs grob messen (headless, nur als Vergleich zwischen den Grafikstufen)
     for (const q of ['hoch', 'niedrig']) {
       const fps = await page.evaluate(async q => { SET.quality = q; terrKey = ''; resize(); let n = 0; const t0 = performance.now(); await new Promise(r => { const f = () => { n++; performance.now() - t0 < 1500 ? requestAnimationFrame(f) : r(); }; requestAnimationFrame(f); }); return Math.round(n / ((performance.now() - t0) / 1000)); }, q);
