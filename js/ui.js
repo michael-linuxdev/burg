@@ -26,7 +26,7 @@ function toast(m){if(tq.length&&tq[tq.length-1]===m)return;tq.push(m);if(tq.leng
 H.say=toast;
 H.vibrate=p=>{if(!SET.vibrate)return;try{navigator.vibrate&&navigator.vibrate(p)}catch(e){}};
 function nextToast(){const el=$('toast');if(!tq.length){tBusy=false;el.classList.remove('show');return}tBusy=true;el.textContent=tq.shift();el.classList.add('show');setTimeout(()=>{el.classList.remove('show');setTimeout(nextToast,220)},2400)}
-const GROUPS=[['Wohnen und Glaube',['haus','kapelle','brunnen']],['Nahrung',['obst','farm','muehle','baecker']],['Rohstoffe',['holzf','stein']],['Burg',['mauer','tor','turm','kaserne']],['Werkzeug',['abriss']]];
+const GROUPS=[['Wohnen und Glaube',['haus','kapelle','brunnen']],['Nahrung',['obst','farm','muehle','baecker']],['Rohstoffe',['holzf','stein','mine','weide']],['Lager',['lager','korn','ruest']],['Waffen',['bogner','schmied','gerber']],['Burg',['mauer','tor','turm','kaserne']],['Werkzeug',['abriss']]];
 function buildCards(){
   const el=$('cards');el.innerHTML='';
   for(const[name,keys]of GROUPS){
@@ -68,14 +68,26 @@ function court(){
     (sea===3?'Felder und Obstgärten ruhen. Deine Leute verbrennen '+Math.ceil(S.pop/10)+' Holz pro Tag.':sea===2?'Obstgärten tragen doppelt. Danach kommt der Winter.':'Alle Höfe arbeiten normal.');
   const k=count('kaserne')>0;
   $('armysub').textContent='Bogenschützen: '+S.archers+(S.archers?' (Sold '+Math.ceil(S.archers*SOLD)+' 💰 pro Tag)':'')+'. Zwei Wachen im Bergfried schießen immer mit. Türme fassen je 3 Schützen.';
-  const rb=$('recruit'),why=recruitWhy();rb.disabled=!!why&&why!=='Nicht genug Gold'||S.res.gold<ARCHER_GOLD;
-  rb.textContent=why&&why!=='Nicht genug Gold'?why:'Bogenschütze ausbilden ('+ARCHER_GOLD+' 💰)';
+  const rb=$('recruit'),why=recruitWhy(),U=UNIT.archer;rb.disabled=!!why;
+  rb.textContent=why&&/Kaserne|Leute/.test(why)?why:'Bogenschütze ausbilden ('+U.gold+' 💰 + '+costTxt(U.need)+')';
+  if(why&&!/Kaserne|Leute/.test(why))rb.title=why;
+  // Burg
+  const lv=KEEP_LV[S.keepLv],nx=KEEP_LV[S.keepLv+1];
+  $('keepsub').innerHTML=`<img src="${makeIcon('keep'+S.keepLv)}" alt=""><span><b>${lv.n}</b> · ${Math.ceil(S.keepHp)}/${S.keepMax} LP · ${lv.guards} Wachen · ${lv.pop} Grundplätze</span>`;
+  const ub=$('upgrade');ub.style.display=nx?'':'none';
+  if(nx){ub.disabled=!!upgradeWhy();ub.textContent='Ausbauen zur '+nx.n+' ('+costTxt(nx.cost)+')';$('upsub').textContent=nx.n+': '+nx.hp+' LP, '+nx.guards+' Wachen, '+nx.pop+' Grundplätze, größere Grundlager.'}
+  else $('upsub').textContent='Deine Burg ist voll ausgebaut.';
+  // Lager
+  $('storesub').innerHTML=Object.keys(STORE_NAME).map(kind=>{const ks=Object.keys(STORE).filter(k=>STORE[k]===kind),c=storeCap(kind);
+    return `<li><span>${STORE_NAME[kind]} <small>(je ${c})</small></span><span>${ks.filter(k=>S.res[k]>0||kind!=='waffen').map(k=>`<span class="${S.res[k]>=c?'minus':''}">${RICON[k]} ${Math.floor(S.res[k])}</span>`).join(' ')||'leer'}</span></li>`}).join('')+
+    (Object.keys(S.spill).length?`<li class="minus"><span>Heute verfallen</span><span>${Object.entries(S.spill).map(([k,v])=>v+' '+RICON[k]).join(' ')}</span></li>`:'');
 }
 function hint(){
   if(sel)return B[sel].drag?'Mit dem Finger über die Felder ziehen. Mit zwei Fingern verschieben.':'Tippe auf ein helles Feld. Ein Finger verschiebt die Karte.';
   if(S.grid.some(t=>t.b&&t.b.burn))return 'Es brennt! Tippe auf brennende Gebäude, um sie für 2 💰 zu löschen.';
   const sea=seasonOf(S.day),left=SLEN-((S.day-1)%SLEN);
   if(sea===3&&S.cold)return 'Deine Leute frieren. Holzfäller liefern Brennholz.';
+  const sp=Object.keys(S.spill);if(sp.length)return 'Lager voll: '+sp.map(k=>RNAME[k]).join(', ')+' verfällt. Baue '+[...new Set(sp.map(k=>STORE_NAME[STORE[k]]))].join(' oder ')+'.';
   if(S.unpaid)return 'Der Sold für die Bogenschützen fehlt. Erhöhe die Steuern oder bilde vorerst keine weiteren Schützen aus.';
   if(!count('holzf'))return 'Tippe auf „Bauen“ und setze einen Holzfäller an den Waldrand.';
   if(!count('obst')&&!count('farm'))return 'Baue einen Obstgarten, damit niemand hungert.';
@@ -89,17 +101,22 @@ function hint(){
   if(mission().raid&&mission().raid.fire<=S.raids+1&&!count('brunnen'))return 'Brandstifter kommen. Brunnen löschen Feuer in der Nähe.';
   if(S.nextRaid!=null&&!count('mauer')&&S.nextRaid<=4)return 'Ziehe Mauern um den Bergfried, bevor die Feinde kommen.';
   if(S.nextRaid!=null&&!count('kaserne')&&S.raids>=1)return 'Mit einer Kaserne bildest du im Hof Bogenschützen aus.';
+  if(S.nextRaid!=null&&count('kaserne')&&S.res.bogen<1&&!count('bogner'))return 'Bogenschützen brauchen Bögen. Ein Bogenmacher schnitzt sie aus Holz.';
+  if(KEEP_LV[S.keepLv+1]&&!upgradeWhy())return 'Du kannst deine Burg im Hof zur '+KEEP_LV[S.keepLv+1].n+' ausbauen.';
   if(S.idle>0)return S.idle===1?'1 Person hat keine Arbeit.':S.idle+' Leute haben keine Arbeit.';
   const off=S.grid.filter(t=>t.b&&B[t.b.type]&&B[t.b.type].w&&!t.b.on).length;
   if(off)return off+' Gebäude ohne Arbeiter (roter Punkt). Mehr Hütten bringen mehr Leute.';
   return 'Tippe auf ein Feld, um mehr zu erfahren. Zwei Finger zoomen.';
 }
-let hudT=0;
+let hudT=0;const BASE_SHOW=['holz','stein','weizen','mehl','brot','aepfel','gold'];
 function hud(force){
   const t=performance.now();if(!force&&t-hudT<200)return;hudT=t;
   const sea=seasonOf(S.day),tod=timeOfDay();
   $('day').textContent='Tag '+S.day;$('season').textContent=SEAS[sea][0]+' '+SEAS[sea][1];$('clock').textContent=tod.label[0];$('clock').title=tod.label[1];$('clock').setAttribute('aria-label',tod.label[1]);
-  $('res').innerHTML=RES.map(([k,i])=>`<span title="${RNAME[k]}">${i} <b>${Math.floor(S.res[k])}</b></span>`).join('');
+  // Grundrohstoffe immer, weitere nur wenn vorhanden oder ein Erzeuger steht. Fast volle Lager werden markiert.
+  const prodBy=k=>Object.keys(B).some(t=>(B[t].prod&&B[t].prod[k]||B[t].modes&&Object.values(B[t].modes).some(m=>m.prod[k]))&&count(t));
+  $('res').innerHTML=RES.filter(([k])=>BASE_SHOW.includes(k)||S.res[k]>0||prodBy(k)).map(([k,i])=>{const c=resCap(k),v=Math.floor(S.res[k]),cls=S.spill[k]?'spill':v>=c*.9?'full':'';
+    return `<span class="${cls}" title="${RNAME[k]}${isFinite(c)?' ('+v+' von '+c+')':''}">${i} <b>${v}</b></span>`}).join('');
   $('popl').textContent='👥 '+S.pop+'/'+cap()+(S.idle>0?' ('+S.idle+' frei)':'');
   $('ppn').textContent=Math.round(S.pp);
   const pb=$('ppb');pb.style.width=S.pp+'%';pb.style.background=S.pp>=50?'var(--good)':S.pp>=25?'var(--gold)':'var(--danger)';
@@ -121,13 +138,15 @@ function info(r,c){
   const t=T(r,c);
   if(t.b){
     const b=t.b;
-    if(b.type==='keep')return toast('Bergfried: '+Math.ceil(S.keepHp)+' von '+S.keepMax+' Lebenspunkten. Fällt er, ist das Spiel vorbei.');
+    if(b.type==='keep')return toast(KEEP_LV[S.keepLv].n+': '+Math.ceil(S.keepHp)+' von '+S.keepMax+' Lebenspunkten. Fällt sie, ist das Spiel vorbei. Ausbauen kannst du im Hof.');
     const d=B[b.type];
     if(b.burn){if(S.res.gold>=2){S.res.gold-=2;b.burn=0;toast(d.n+' gelöscht. −2 💰')}else toast('Nicht genug Gold zum Löschen.');return}
     if(d.wall)return toast(d.n+': '+Math.max(0,Math.round(b.hp))+' von '+d.hp+' Lebenspunkten.');
     if(b.cut)return toast(d.n+' ist abgeschnitten. Deine Leute brauchen einen Weg zum Bergfried.');
     if(b.winter)return toast(d.n+' ruht im Winter.');
-    if(d.w)return toast(d.n+': '+(b.on?(b.starved?'wartet auf Rohstoffe.':'arbeitet.'):'braucht '+d.w+' Arbeiter.'));
+    if(d.modes){b.mode=b.mode==='schwert'?'speer':'schwert';AU.play('klick');return toast('Schmied stellt jetzt '+(b.mode==='schwert'?'Schwerter':'Speere')+' her ('+costTxt(d.modes[b.mode].use)+' → '+costTxt(d.modes[b.mode].prod)+').')}
+    if(d.store)return toast(d.n+': +'+STORE_ADD[d.store]+' Platz je Rohstoff. Insgesamt passen jetzt '+storeCap(d.store)+' hinein.');
+    if(d.w)return toast(d.n+': '+(b.on?(b.starved?'wartet auf Rohstoffe ('+costTxt(recipe(b).use)+').':'arbeitet.'):'braucht '+d.w+' Arbeiter.'));
     return toast(d.n+'. '+d.d);
   }
   toast(t.t===TREE?'Wald. Holzfäller brauchen ihn in der Nähe.':t.t===ROCK?'Felsen. Hier gehört ein Steinbruch hin.':t.t===WATER?(seasonOf(S.day)===3?'Ein zugefrorener Teich.':'Ein Teich.'):'Freies Feld. Öffne „Bauen“, um etwas zu errichten.');
@@ -164,6 +183,7 @@ function paint(p,first){const t=tileAtP(p);if(!t)return;const k=t.join(',');if(k
 function tap(p){if(S.over||S.won)return;const t=tileAtP(p);if(!t)return;if(!sel)info(t[0],t[1]);else{record(act(sel,t[0],t[1],false));hud(true)}}
 function setSpeed(v){speed=v;document.querySelectorAll('.speed button').forEach(x=>x.setAttribute('aria-pressed',+x.dataset.s===v?'true':'false'))}
 document.querySelectorAll('.speed button').forEach(b=>b.onclick=()=>setSpeed(+b.dataset.s));
+$('upgrade').onclick=()=>{const why=upgradeKeep();if(why)toast(why);terrKey='';court();hud(true)};
 $('recruit').onclick=()=>{const why=recruit();toast(why?why+'.':'Ein Bogenschütze steht bereit.');court();hud(true)};
 
 // ---------- Menü & Dialoge ----------
