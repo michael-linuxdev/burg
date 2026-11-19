@@ -43,7 +43,7 @@ function order(list,t){
   if(!list.length)return 0;ensure();
   const slots=[],seen=new Set([t]),q=[t],upT=isUp(t);
   for(let h=0;h<q.length&&slots.length<list.length;h++){const i=q[h];
-    const free=(upT?upCap(i):GROUND_CAP)-S.units.filter(u=>!list.includes(u)&&(u.dest!=null?u.dest:u.i)===i).length;
+    const ok=upT?isUp(i):groundOk(i),free=!ok?0:(upT?upCap(i):GROUND_CAP)-S.units.filter(u=>!list.includes(u)&&(u.dest!=null?u.dest:u.i)===i).length;
     for(let k=0;k<free&&slots.length<list.length;k++)slots.push(i);
     const r=i/COLS|0,c=i%COLS;
     for(const[dr,dc]of DIRS){const r2=r+dr,c2=c+dc;if(!inb(r2,c2))continue;const v=r2*COLS+c2;if(seen.has(v))continue;
@@ -57,7 +57,12 @@ function orderAttack(list,e){// auf einen Feind hetzen: Nahkämpfer laufen hin, 
 }
 function unitRange(u){const U=UNIT[u.type];if(!U.range)return U.reach;const b=S.grid[u.i].b;
   return b?b.type==='turm'?U.range+1.4:b.type==='keep'?U.range+.3:isWall(b)&&!B[b.type].gate?U.range+.8:U.range:U.range}
-function unitLift(u){const b=S.grid[u.i].b;if(!b||u.path.length)return 0;return b.type==='turm'?.64:b.type==='keep'?.85:isWall(b)&&!B[b.type].gate?.36:0}
+// Höhe (in Feldern) oben auf einem Feld: Mauer 0,36, Turm 0,64, Bergfried 0,85. Beim Laufen wird zwischen zwei Feldern übergeblendet.
+function tileLift(i){const b=S.grid[i].b;if(!b)return 0;return b.type==='turm'?.64:b.type==='keep'?.85:isWall(b)&&!B[b.type].gate?.36:0}
+function unitLift(u){const a=tileLift(u.i);if(!u.path.length)return a;const n=u.path[0],f=Math.max(0,1-Math.hypot(n%COLS+.5-u.x,(n/COLS|0)+.5-u.y));return a+(tileLift(n)-a)*f}
+// Deckung hinter Zinnen: Faktor auf Pfeilschaden für Einheiten, die oben stehen (nicht beim Laufen)
+const COVER={mauer:.5,turm:.4,keep:.5};
+function unitCover(u){if(u.path.length)return 1;const b=S.grid[u.i].b;return b&&COVER[b.type]||1}
 function hurtUnit(u,dmg){u.hp-=dmg*(UNIT[u.type].armor||1);if(u.hp<=0&&!u.dead){u.dead=true;H.say(UNIT[u.type].n+' ist gefallen.');H.fx(u.x,u.y,'dust',6)}}
 // Einheiten bewegen und kämpfen lassen
 function updateUnits(dt){
@@ -81,7 +86,7 @@ function updateUnits(dt){
     if(d<=rng+.05){
       if(u.path.length&&u.dest!=null&&!u.tgt){/* unterwegs: im Vorbeigehen schießen */}
       if(u.cd<=0){u.cd=1/U.rate;let dmg=U.dmg*ETYPE[tg.type].armor;if(U.vsRam&&tg.type==='ram')dmg*=U.vsRam;
-        const hp0=tg.hp;tg.hp-=dmg;if(U.range){H.shot(u.x,u.y-unitLift(u),tg.x,tg.y)}else H.sfx('treffer');
+        const hp0=tg.hp;tg.hp-=dmg;if(U.range){H.shot(u.x,u.y,tg.x,tg.y,false,unitLift(u),enemyLift(tg))}else H.sfx('treffer');
         if(tg.hp<=0&&hp0>0)killReward(tg)}
     }else if(!isUp(u.i)||u.tgt){
       // hinterherlaufen (Ziel neu berechnen höchstens alle 0,5 s)
@@ -89,7 +94,8 @@ function updateUnits(dt){
       if(u.chase<=0){u.chase=.5;const ti=(tg.r)*COLS+tg.c,p=unitPath(u.i,ti);if(p){if(U.range&&p.length)p.length=Math.max(1,p.length-Math.floor(rng));u.path=p;u.dest=p.length?p[p.length-1]:null}}
     }
   }
-  if(S.units.some(u=>u.hp<=0)){S.units=S.units.filter(u=>u.hp>0);assignWorkers()}
+  // Gefallene verlassen das Spiel: die Einwohnerzahl sinkt mit
+  const fallen=S.units.filter(u=>u.hp<=0).length;if(fallen){S.units=S.units.filter(u=>u.hp>0);S.pop=Math.max(S.units.length,S.pop-fallen);assignWorkers()}
 }
 const soldiers=()=>S.units.length;
 const soldCost=()=>S.units.reduce((a,u)=>a+UNIT[u.type].sold,0);

@@ -26,3 +26,5 @@ jobs:
         run: npm run smoke
       - name: Tutorial, Rückgängig, Spielstände, Einstellungen
         run: npm run tutorial
+      - name: Truppen (Ausbilden, Auswahl per Rahmen, Befehle)
+        run: npm run troops

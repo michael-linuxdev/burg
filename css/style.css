@@ -51,7 +51,7 @@ canvas{position:absolute;inset:0;width:100%;height:100%;touch-action:none;displa
 
 #dock{position:absolute;left:0;right:0;bottom:12px;display:flex;justify-content:center;gap:10px;z-index:5;padding:0 10px;pointer-events:none}
 #dock>*{pointer-events:auto}
-.fab{display:flex;align-items:center;gap:8px;padding:11px 22px;border-radius:999px;font-weight:700;font-size:16px;cursor:pointer}
+.fab{display:flex;align-items:center;gap:8px;padding:11px 18px;border-radius:999px;font-weight:700;font-size:16px;cursor:pointer}
 .fab img{width:28px;height:28px;margin:-4px 0}
 #toolbar{display:none;align-items:center;gap:10px;padding:7px 8px 7px 8px;border-radius:14px;max-width:540px;width:100%}
 #toolbar .ti{width:44px;height:44px;display:flex;align-items:center;justify-content:center;font-size:24px;flex:0 0 auto}
@@ -169,3 +169,25 @@ canvas{position:absolute;inset:0;width:100%;height:100%;touch-action:none;displa
 .list li small{color:var(--muted)}
 .sub.keep{display:flex;align-items:center;gap:8px;font-size:13.5px;color:var(--ink)}
 .sub.keep img{width:56px;height:56px;flex:0 0 auto}
+/* Truppen: Auswahl-Chips in der Werkzeugleiste, Ausbilden im Hof */
+.troops #toolbar .ti{display:none}
+.troops #toolbar{flex-wrap:wrap;row-gap:6px}
+#chips{display:none;flex-basis:100%;order:9}
+.troops #chips{display:flex}
+.chips{gap:6px;overflow-x:auto;scrollbar-width:none;padding:1px}
+.chips::-webkit-scrollbar{display:none}
+.chip{flex:0 0 auto;display:flex;align-items:center;gap:3px;min-height:40px;min-width:44px;padding:3px 10px;border:1px solid var(--line);border-radius:999px;
+  background:none;cursor:pointer;font-size:14px;font-weight:700;color:var(--ink);font-variant-numeric:tabular-nums}
+.chip img{width:30px;height:30px;margin:-6px -2px -4px -6px}
+.chip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--panel)}
+.ugrid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:6px}
+.ubtn{display:flex;align-items:center;gap:6px;text-align:left;min-height:56px;padding:6px 8px;border:1px solid var(--accent);border-radius:10px;background:none;cursor:pointer;color:var(--ink)}
+.ubtn img{width:42px;height:42px;flex:0 0 auto}
+.ubtn b{display:block;font-size:14px}
+.ubtn small{display:block;font-size:12px;color:var(--muted);line-height:1.25}
+.ubtn small.minus{color:var(--danger)}
+.ubtn:disabled{border-color:var(--line);cursor:default}
+.ubtn:disabled img{opacity:.5}
+.land .chip{flex:1 1 auto;justify-content:center;padding:3px 4px}
+.land .chip img{margin:-6px -4px -4px -8px}
+.land.troops #hud{bottom:124px}

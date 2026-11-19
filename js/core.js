@@ -4,7 +4,7 @@ const H={
   say(){},            // kurze Meldung für den Spieler
   fx(){},             // visueller Effekt an Kartenposition (tx, ty, Art, Anzahl)
   sfx(){},            // Geräusch (Name)
-  shot(){},           // Pfeil von (x1,y1) nach (x2,y2), Kartenkoordinaten
+  shot(){},           // Pfeil von (x1,y1) nach (x2,y2), Kartenkoordinaten; (…, feindlich, Höhe Start, Höhe Ziel)
   side:s=>s,          // Himmelsrichtung für die Anzeige (Querformat dreht die Karte)
   vibrate(){},
   won(){},lost(){}

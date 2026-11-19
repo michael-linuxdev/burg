@@ -40,15 +40,18 @@ function buildCards(){
 }
 function updateCards(){document.querySelectorAll('.card').forEach(b=>b.classList.toggle('poor',!has(B[b.dataset.k].cost)))}
 function refreshSel(){
-  const on=!!sel;$('toolbar').style.display=on?'flex':'none';$('openBuild').style.display=on?'none':'flex';$('openCourt').style.display=on?'none':'flex';
-  if(on){const d=B[sel];$('tIcon').innerHTML=d.tool?d.i:`<img src="${makeIcon(sel)}" alt="">`;
+  const on=!!sel,tr=sel===TROOP;$('toolbar').style.display=on?'flex':'none';$('openBuild').style.display=on?'none':'flex';$('openCourt').style.display=on?'none':'flex';
+  $('openTroops').style.display=on||!troopsAvail()?'none':'flex';$('tUndo').style.display=tr?'none':'';document.body.classList.toggle('troops',tr);
+  if(!tr){picked.clear();boxR=null}
+  if(tr){$('tIcon').innerHTML='<span aria-hidden="true">⚔️</span>';$('tText').innerHTML='<b id="tSum"></b><span id="tSub"></span>';troopSig='';troopBar()}
+  else if(on){const d=B[sel];$('tIcon').innerHTML=d.tool?d.i:`<img src="${makeIcon(sel)}" alt="">`;
     $('tText').innerHTML=`<b>${d.n}${d.tool?'':' <span style="font-weight:400;color:var(--muted)">'+costTxt(d.cost)+'</span>'}</b>${d.d}`}
   requestAnimationFrame(resize);if(S)hud(true);
 }
 function openSheet(id){closeSheets();$(id).classList.add('open');if(id==='courtWrap')court();else updateCards()}
 function closeSheets(){document.querySelectorAll('.sheetwrap').forEach(w=>w.classList.remove('open'))}
 document.querySelectorAll('.sheetwrap').forEach(w=>w.addEventListener('click',e=>{if(e.target===w||e.target.hasAttribute('data-close'))closeSheets()}));
-$('openBuild').onclick=()=>openSheet('buildWrap');$('openCourt').onclick=()=>openSheet('courtWrap');
+$('openBuild').onclick=()=>openSheet('buildWrap');$('openCourt').onclick=()=>openSheet('courtWrap');$('openTroops').onclick=()=>openTroops();
 $('tDone').onclick=()=>{sel=null;refreshSel()};
 $('tUndo').onclick=()=>{const n=undo();toast(n?(n===1?'Rückgängig gemacht.':n+' Bauteile zurückgenommen.'):'Nichts mehr rückgängig zu machen.');hud(true)};
 const segBtns={};
@@ -66,11 +69,10 @@ function court(){
   const sea=seasonOf(S.day),left=SLEN-((S.day-1)%SLEN);
   $('seasub').textContent=SEAS[sea][0]+' '+SEAS[sea][1]+', noch '+left+(left===1?' Tag. ':' Tage. ')+
     (sea===3?'Felder und Obstgärten ruhen. Deine Leute verbrennen '+Math.ceil(S.pop/10)+' Holz pro Tag.':sea===2?'Obstgärten tragen doppelt. Danach kommt der Winter.':'Alle Höfe arbeiten normal.');
-  const k=count('kaserne')>0;
-  $('armysub').textContent='Truppen: '+S.units.length+(S.units.length?' (Sold '+soldCost()+' 💰 pro Tag)':'')+'. Die Wachen im Bergfried schießen immer mit. Türme fassen je 3 Einheiten.';
-  const rb=$('recruit'),why=recruitWhy(),U=UNIT.archer;rb.disabled=!!why;
-  rb.textContent=why&&/Kaserne|Leute/.test(why)?why:'Bogenschütze ausbilden ('+U.gold+' 💰 + '+costTxt(U.need)+')';
-  if(why&&!/Kaserne|Leute/.test(why))rb.title=why;
+  const tc=troopCounts();
+  $('armysub').textContent=(S.units.length?'Truppen: '+Object.entries(tc).map(([t,n])=>n+' '+UNIT[t].i).join(', ')+' · Sold '+soldCost()+' 💰 pro Tag. Befehle gibst du über „Truppen“ unten.':'Noch keine Truppen.')+
+    ' Die '+KEEP_LV[S.keepLv].guards+' Wachen im Bergfried schießen immer mit. Türme fassen je 3 Einheiten.';
+  document.querySelectorAll('#recruits .ubtn').forEach(b=>{const t=b.dataset.t,why=recruitWhy(t);b.disabled=!!why;b.querySelector('.why').textContent=why?why+'.':UNIT[t].d;b.querySelector('.why').classList.toggle('minus',!!why)});
   // Burg
   const lv=KEEP_LV[S.keepLv],nx=KEEP_LV[S.keepLv+1];
   $('keepsub').innerHTML=`<img src="${makeIcon('keep'+S.keepLv)}" alt=""><span><b>${lv.n}</b> · ${Math.ceil(S.keepHp)}/${S.keepMax} LP · ${lv.guards} Wachen · ${lv.pop} Grundplätze</span>`;
@@ -83,12 +85,16 @@ function court(){
     (Object.keys(S.spill).length?`<li class="minus"><span>Heute verfallen</span><span>${Object.entries(S.spill).map(([k,v])=>v+' '+RICON[k]).join(' ')}</span></li>`:'');
 }
 function hint(){
+  if(sel===TROOP)return !S.units.length?'Keine Truppen. Bilde sie im Hof aus.':picked.size?'Tippe auf ein Feld, eine Mauer oder einen Turm, um die Truppen hinzuschicken. Tippe auf einen Feind, um ihn anzugreifen.':'Tippe auf Einheiten oder ziehe mit einem Finger einen Rahmen. Zwei Finger verschieben die Karte.';
   if(sel)return B[sel].drag?'Mit dem Finger über die Felder ziehen. Mit zwei Fingern verschieben.':'Tippe auf ein helles Feld. Ein Finger verschiebt die Karte.';
   if(S.grid.some(t=>t.b&&t.b.burn))return 'Es brennt! Tippe auf brennende Gebäude, um sie für 2 💰 zu löschen.';
   const sea=seasonOf(S.day),left=SLEN-((S.day-1)%SLEN);
   if(sea===3&&S.cold)return 'Deine Leute frieren. Holzfäller liefern Brennholz.';
   const sp=Object.keys(S.spill);if(sp.length)return 'Lager voll: '+sp.map(k=>RNAME[k]).join(', ')+' verfällt. Baue '+[...new Set(sp.map(k=>STORE_NAME[STORE[k]]))].join(' oder ')+'.';
-  if(S.unpaid)return 'Der Sold für die Bogenschützen fehlt. Erhöhe die Steuern oder bilde vorerst keine weiteren Schützen aus.';
+  if(S.unpaid)return 'Der Sold für deine Truppen fehlt. Erhöhe die Steuern oder bilde vorerst keine weiteren Truppen aus.';
+  if(S.enemies.some(e=>e.type==='ram'&&e.wait<=0)&&S.units.some(u=>u.type==='spear'))return 'Rammböcke! Schicke Speerträger hin: Sie richten dreifachen Schaden an. Tippe dazu auf „Truppen“.';
+  if(S.enemies.some(e=>e.type==='ladder'&&e.wait<=0))return 'Leitermänner klettern über Mauern. Stelle Nahkämpfer auf die Mauer oder hinter die Mauer.';
+  if(S.enemies.some(e=>e.type==='archer'&&e.wait<=0)&&S.units.some(u=>UNIT[u.type].reach))return 'Feindliche Bogenschützen beschießen deine Truppen. Ritter und Schwertkämpfer holen sie bei einem Ausfall.';
   if(!count('holzf'))return 'Tippe auf „Bauen“ und setze einen Holzfäller an den Waldrand.';
   if(!count('obst')&&!count('farm'))return 'Baue einen Obstgarten, damit niemand hungert.';
   const cut=S.grid.filter(t=>t.b&&t.b.cut).length;if(cut)return cut+' Gebäude sind abgeschnitten (graues Zeichen). Baue ein Tor in die Mauer.';
@@ -100,7 +106,7 @@ function hint(){
   if(S.lastDelta<0&&S.pp<58)return 'Die Beliebtheit sinkt. Passe Steuern oder Rationen im Hof an.';
   if(mission().raid&&mission().raid.fire<=S.raids+1&&!count('brunnen'))return 'Brandstifter kommen. Brunnen löschen Feuer in der Nähe.';
   if(S.nextRaid!=null&&!count('mauer')&&S.nextRaid<=4)return 'Ziehe Mauern um den Bergfried, bevor die Feinde kommen.';
-  if(S.nextRaid!=null&&!count('kaserne')&&S.raids>=1)return 'Mit einer Kaserne bildest du im Hof Bogenschützen aus.';
+  if(S.nextRaid!=null&&!count('kaserne')&&S.raids>=1)return 'Mit einer Kaserne bildest du im Hof Truppen aus.';
   if(S.nextRaid!=null&&count('kaserne')&&S.res.bogen<1&&!count('bogner'))return 'Bogenschützen brauchen Bögen. Ein Bogenmacher schnitzt sie aus Holz.';
   if(KEEP_LV[S.keepLv+1]&&!upgradeWhy())return 'Du kannst deine Burg im Hof zur '+KEEP_LV[S.keepLv+1].n+' ausbauen.';
   if(S.idle>0)return S.idle===1?'1 Person hat keine Arbeit.':S.idle+' Leute haben keine Arbeit.';
@@ -130,7 +136,8 @@ function hud(force){
   if(m.goals.length)$('goal').innerHTML='Ziel: '+goalState().map(g=>`<span class="${g.ok?'done':''}">${GOALTXT[g.t][0]} ${Math.min(g.v,g.n)}/${g.n} ${GOALTXT[g.t][1]}</span>`).join(', ');
   else $('goal').textContent='Freies Spiel: '+S.repelled+(S.repelled===1?' Angriff':' Angriffe')+' abgewehrt';
   $('hint').textContent=hint();
-  $('tUndo').disabled=!canUndo();
+  $('tUndo').disabled=!canUndo();troopBar();
+  const ta=!sel&&troopsAvail();if(($('openTroops').style.display!=='none')!==ta){$('openTroops').style.display=ta?'flex':'none';requestAnimationFrame(resize)}
   if($('courtWrap').classList.contains('open'))court();
   if($('buildWrap').classList.contains('open'))updateCards();
 }
@@ -157,10 +164,10 @@ const loc=e=>{const r=cv.getBoundingClientRect();return{x:e.clientX-r.left,y:e.c
 const tileAtP=p=>{const sc=Math.floor((p.x-ox)/cell),sr=Math.floor((p.y-oy)/cell),r=TRANS?sc:sr,c=TRANS?sr:sc;return inb(r,c)?[r,c]:null};
 cv.addEventListener('pointerdown',e=>{
   if(!S||uiPause)return;cv.setPointerCapture(e.pointerId);const p=loc(e);ptrs.set(e.pointerId,p);
-  if(ptrs.size===2){if(gest&&gest.mode==='paint')undoEnd();const[a,b]=[...ptrs.values()];gest={mode:'pinch',d0:Math.hypot(a.x-b.x,a.y-b.y)||1,z0:zoom,mx:(a.x+b.x)/2,my:(a.y+b.y)/2};return}
+  if(ptrs.size===2){if(gest&&gest.mode==='paint')undoEnd();boxR=null;const[a,b]=[...ptrs.values()];gest={mode:'pinch',d0:Math.hypot(a.x-b.x,a.y-b.y)||1,z0:zoom,mx:(a.x+b.x)/2,my:(a.y+b.y)/2};return}
   if(ptrs.size>2)return;
   gest={mode:'pending',sx:p.x,sy:p.y,ox0:ox,oy0:oy,last:''};
-  if(sel&&B[sel].drag&&!S.over&&!S.won){gest.mode='paint';undoBegin();paint(p,true)}
+  if(sel&&B[sel]&&B[sel].drag&&!S.over&&!S.won){gest.mode='paint';undoBegin();paint(p,true)}
 });
 cv.addEventListener('pointermove',e=>{
   if(!ptrs.has(e.pointerId))return;const p=loc(e);ptrs.set(e.pointerId,p);if(!gest)return;
@@ -168,23 +175,75 @@ cv.addEventListener('pointermove',e=>{
     ox+=mx-gest.mx;oy+=my-gest.my;gest.mx=mx;gest.my=my;zoomAt(mx,my,gest.z0*d/gest.d0);return}
   if(gest.mode==='paint'){paint(p,false);return}
   const dx=p.x-gest.sx,dy=p.y-gest.sy;
-  if(gest.mode==='pending'&&Math.hypot(dx,dy)>8)gest.mode='pan';
+  if(gest.mode==='pending'&&Math.hypot(dx,dy)>8)gest.mode=sel===TROOP?'box':'pan';
+  if(gest.mode==='box'){boxR={x0:gest.sx,y0:gest.sy,x1:p.x,y1:p.y};return}
   if(gest.mode==='pan'){ox=gest.ox0+dx;oy=gest.oy0+dy;clampCam()}
 });
 const endPtr=e=>{
   if(!ptrs.has(e.pointerId))return;const p=ptrs.get(e.pointerId);ptrs.delete(e.pointerId);
   if(gest&&gest.mode==='pending'&&e.type==='pointerup')tap(p);
+  if(gest&&gest.mode==='box'){if(e.type==='pointerup')boxEnd();boxR=null}
   if(ptrs.size===1&&gest&&gest.mode==='pinch'){const q=[...ptrs.values()][0];gest={mode:'pan',sx:q.x,sy:q.y,ox0:ox,oy0:oy}}
   else if(!ptrs.size){if(gest&&gest.mode==='paint')undoEnd();gest=null;if(S)hud(true)}
 };
 cv.addEventListener('pointerup',endPtr);cv.addEventListener('pointercancel',endPtr);
 cv.addEventListener('wheel',e=>{e.preventDefault();const p=loc(e);zoomAt(p.x,p.y,zoom*Math.exp(-e.deltaY*.0015))},{passive:false});
 function paint(p,first){const t=tileAtP(p);if(!t)return;const k=t.join(',');if(k===gest.last)return;gest.last=k;record(act(sel,t[0],t[1],!first));hud(true)}
-function tap(p){if(S.over||S.won)return;const t=tileAtP(p);if(!t)return;if(!sel)info(t[0],t[1]);else{record(act(sel,t[0],t[1],false));hud(true)}}
+function tap(p){if(S.over||S.won)return;
+  if(sel===TROOP){troopTap(p);hud(true);return}
+  if(!sel){const u=unitAtP(p);if(u){openTroops([u.id]);return}}
+  const t=tileAtP(p);if(!t)return;if(!sel)info(t[0],t[1]);else{record(act(sel,t[0],t[1],false));hud(true)}}
 function setSpeed(v){speed=v;document.querySelectorAll('.speed button').forEach(x=>x.setAttribute('aria-pressed',+x.dataset.s===v?'true':'false'))}
 document.querySelectorAll('.speed button').forEach(b=>b.onclick=()=>setSpeed(+b.dataset.s));
 $('upgrade').onclick=()=>{const why=upgradeKeep();if(why)toast(why);terrKey='';court();hud(true)};
-$('recruit').onclick=()=>{const why=recruit();toast(why?why+'.':'Ein Bogenschütze steht bereit.');court();hud(true)};
+function buildRecruits(){
+  const el=$('recruits');el.innerHTML='';
+  for(const[t,U]of Object.entries(UNIT)){const b=document.createElement('button');b.className='ubtn';b.dataset.t=t;
+    b.innerHTML=`<img src="${makeIcon('unit:'+t)}" alt=""><span><b>${U.n}</b><small>${costTxt({gold:U.gold,...U.need})} · Sold ${U.sold} 💰</small><small class="why"></small></span>`;
+    b.onclick=()=>{const why=recruit(t);toast(why?why+'.':'Ein '+U.n+' steht bereit.');court();hud(true);refreshSel()};el.appendChild(b)}
+}
+// ---------- Truppen befehligen ----------
+// Werkzeug sel=TROOP: Ein Finger zieht einen Auswahlrahmen, Tippen wählt Einheiten aus oder gibt Befehle.
+const TROOP='truppen';let troopSig='';
+const troopsAvail=()=>!!S&&(S.units.length>0||count('kaserne')>0);
+const troopCounts=()=>{const n={};for(const t in UNIT){const k=S.units.filter(u=>u.type===t).length;if(k)n[t]=k}return n};
+const pickedUnits=()=>S.units.filter(u=>picked.has(u.id));
+function openTroops(ids){
+  if(!S.units.length){toast('Noch keine Truppen. Bilde sie im Hof aus.');return}
+  sel=TROOP;closeSheets();picked=new Set(ids||[]);refreshSel();
+}
+function unitAtP(p){let best=null,bd=cell*.34;for(const u of S.units){const q=unitXY(u),d=Math.hypot(q.X-p.x,q.Y-cell*.1-p.y);if(d<bd){bd=d;best=u}}return best}
+function enemyAtP(p){let best=null,bd=cell*.42;for(const e of S.enemies){if(e.wait>0||e.hp<=0)continue;const q=enemyXY(e),d=Math.hypot(q.X-p.x,q.Y-cell*.1-p.y);if(d<bd){bd=d;best=e}}return best}
+function troopTap(p){
+  const list=pickedUnits(),e=enemyAtP(p);
+  if(e&&list.length){orderAttack(list,e);marks.push({i:e.r*COLS+e.c,t:0,foe:1});AU.play('klick');toast((list.length===1?'Greift ':'Greifen ')+ETYPE[e.type].n+' an.');troopBar();return}
+  const u=unitAtP(p);
+  if(u&&!picked.has(u.id)){picked.add(u.id);AU.play('klick');troopBar();return}
+  const t=tileAtP(p);if(!t)return;
+  if(!list.length){toast('Wähle zuerst Truppen aus: antippen oder einen Rahmen ziehen.');return}
+  const i=t[0]*COLS+t[1],n=order(list,i);
+  if(!n)toast('Dort kommen deine Truppen nicht hin.');
+  else{marks.push({i,t:0});AU.play('klick');if(n<list.length)toast(n+' von '+list.length+' finden dort Platz oder einen Weg.')}
+  troopBar();
+}
+function boxEnd(){
+  if(!boxR)return;const x0=Math.min(boxR.x0,boxR.x1),x1=Math.max(boxR.x0,boxR.x1),y0=Math.min(boxR.y0,boxR.y1),y1=Math.max(boxR.y0,boxR.y1);
+  picked=new Set(S.units.filter(u=>{const q=unitXY(u),cy=q.Y-cell*.1;return q.X>=x0&&q.X<=x1&&cy>=y0&&cy<=y1}).map(u=>u.id));
+  boxR=null;if(picked.size)AU.play('klick');troopBar();
+}
+function troopBar(){
+  if(sel!==TROOP||!$('tSum'))return;
+  for(const id of[...picked])if(!S.units.some(u=>u.id===id))picked.delete(id);
+  const tc=troopCounts(),all=S.units.length,pc=t=>S.units.filter(u=>u.type===t&&picked.has(u.id)).length;
+  const sig=JSON.stringify(tc)+'|'+[...picked].sort().join(',');if(sig===troopSig)return;troopSig=sig;
+  $('tSum').textContent=!all?'Keine Truppen':picked.size?picked.size+' von '+all+' ausgewählt':'Truppen auswählen';
+  $('tSub').textContent=!all?'Bilde Truppen im Hof aus.':picked.size?'Tippe auf ein Ziel oder einen Feind.':'Antippen oder Rahmen ziehen.';
+  const chip=(k,label,n,on,img)=>`<button class="chip" data-t="${k}" aria-pressed="${on}" aria-label="${label}">${img?`<img src="${img}" alt="">`:''}${img?'':label+' '}<span>${n}</span></button>`;
+  $('chips').innerHTML=chip('alle','Alle',all,all>0&&picked.size===all,null)+Object.entries(tc).map(([t,n])=>chip(t,UNIT[t].pl,n,pc(t)===n&&picked.size===n,makeIcon('unit:'+t))).join('');
+}
+$('toolbar').addEventListener('click',e=>{const b=e.target.closest('.chip');if(!b)return;const t=b.dataset.t;
+  const ids=S.units.filter(u=>t==='alle'||u.type===t).map(u=>u.id),same=ids.length===picked.size&&ids.every(id=>picked.has(id));
+  picked=new Set(same?[]:ids);AU.play('klick');troopBar();hud(true)});
 
 // ---------- Menü & Dialoge ----------
 function modal(title,html,btns){
@@ -279,7 +338,7 @@ function loop(t){
 const saved=loadSave();
 if(saved)resume(saved);
 else startGame(0);
-buildCards();$('buildIc').src=makeIcon('haus');
+buildCards();buildRecruits();$('buildIc').src=makeIcon('haus');
 new ResizeObserver(resize).observe($('stage'));new ResizeObserver(resize).observe($('hud'));resize();
 hud(true);openMenu();
 requestAnimationFrame(loop);

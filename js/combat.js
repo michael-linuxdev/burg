@@ -35,6 +35,9 @@ function decide(e){
   else{e.atk=null;e.tr=r;e.tc=c;if(isWall(t.b))e.climb=ETYPE.ladder.climb}
   e.ang=Math.atan2(r-e.r,c-e.c);
 }
+// Höhe eines Feindes über dem Boden (Leitermänner beim Klettern und oben auf der Mauer)
+function enemyLift(e){const a=tileLift(e.r*COLS+e.c);if(e.tr==null)return a;const b=tileLift(e.tr*COLS+e.tc);
+  if(e.climb>0)return a+(b-a)*(1-e.climb/ETYPE.ladder.climb);if(b>a)return b;return a+(b-a)*Math.max(0,1-Math.hypot(e.tc+.5-e.x,e.tr+.5-e.y))}
 function ignite(b){if(flammable(b)&&!b.burn){b.burn=0.01;H.sfx('feuer')}}
 function wellNear(r,c){for(let a=-3;a<=3;a++)for(let b=-3;b<=3;b++){if(inb(r+a,c+b)){const x=T(r+a,c+b).b;if(x&&x.type==='brunnen')return true}}return false}
 function hitKeep(n){S.keepHp-=n;if(S.keepHp<=0){S.keepHp=0;gameOver();return true}return false}
@@ -50,8 +53,8 @@ function update(dt){
     // Fernkämpfer: schießen auf die nächste eigene Einheit in Reichweite (auch auf Mauern), sonst auf den Bergfried
     if(et.range&&e.tr==null){
       let tg=null,bd=et.range;for(const u of S.units){const d=Math.hypot(u.x-e.x,u.y-e.y);if(d<bd){bd=d;tg=u}}
-      if(tg){if(e.cd<=0){e.cd=1;H.shot(e.x,e.y,tg.x,tg.y-unitLift(tg),true);hurtUnit(tg,et.dmg)}continue}
-      if(Math.hypot(KC+.5-e.x,KR+.5-e.y)<=et.range){if(e.cd<=0){e.cd=1;H.shot(e.x,e.y,KC+.5,KR+.5,true);if(hitKeep(et.dmg))return}continue}
+      if(tg){if(e.cd<=0){e.cd=1;H.shot(e.x,e.y,tg.x,tg.y,true,enemyLift(e),unitLift(tg));hurtUnit(tg,et.dmg*unitCover(tg))}continue}
+      if(Math.hypot(KC+.5-e.x,KR+.5-e.y)<=et.range){if(e.cd<=0){e.cd=1;H.shot(e.x,e.y,KC+.5,KR+.5,true,enemyLift(e),.6);if(hitKeep(et.dmg))return}continue}
     }
     // Nahkämpfer: kämpfen gegen eigene Einheiten am Boden, die ihnen zu nahe kommen (Rammböcke nicht)
     else if(!et.range&&e.type!=='ram'&&!e.climb){
@@ -86,7 +89,7 @@ function update(dt){
     let tg=null,bd=3.5;
     for(const e of S.enemies){if(e.wait>0||e.hp<=0)continue;const d=Math.hypot(e.x-KC-.5,e.y-KR-.5);if(d<=bd){bd=d;tg=e}}
     if(!tg){cds.keep=Math.min(cds.keep,1);break}
-    cds.keep-=1;const hp0=tg.hp;tg.hp-=3*ETYPE[tg.type].armor;H.shot(KC+.5,KR+.5-.85,tg.x,tg.y);
+    cds.keep-=1;const hp0=tg.hp;tg.hp-=3*ETYPE[tg.type].armor;H.shot(KC+.5,KR+.5,tg.x,tg.y,false,.85,enemyLift(tg));
     if(tg.hp<=0&&hp0>0)killReward(tg);
   }
   updateUnits(dt);
