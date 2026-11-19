@@ -13,7 +13,7 @@ function spawnWave(){
   }
   if(!edge.length){S.raidSide=null;return}
   list.forEach((type,i)=>{const[r,c]=edge[Math.floor(Math.random()*edge.length)],et=ETYPE[type],h=Math.round(hp*et.hpM);
-    S.enemies.push({type,r,c,x:c+.5,y:r+.5,tr:null,tc:null,hp:h,max:h,cd:0,ign:1,wait:i*0.7,atk:null,ang:0})});
+    S.enemies.push({w:k,type,r,c,x:c+.5,y:r+.5,tr:null,tc:null,hp:h,max:h,cd:0,ign:1,wait:i*0.7,atk:null,ang:0})});
   S.raidActive=true;S.raidSide=null;
   const parts=[];const cnt=t=>list.filter(x=>x===t).length;
   if(cnt('raider'))parts.push(cnt('raider')+' Räuber');if(cnt('fire'))parts.push(cnt('fire')+' Brandstifter');if(cnt('ram'))parts.push(cnt('ram')+(cnt('ram')>1?' Rammböcke':' Rammbock'));
@@ -71,11 +71,15 @@ function update(dt){
       for(const e of S.enemies){if(e.wait>0||e.hp<=0)continue;const d=Math.hypot(e.x-s.x,e.y-s.y);if(d<=bd){bd=d;tg=e}}
       if(!tg){cds[s.k]=Math.min(cds[s.k],1);break}
       cds[s.k]-=1;tg.hp-=3*ETYPE[tg.type].armor;H.shot(s.x,s.y,tg.x,tg.y);
-      if(tg.hp<=0){S.res.gold+=tg.type==='ram'?8:3;H.fx(tg.x,tg.y,'dust',8)}
+      if(tg.hp<=0){S.res.gold+=tg.type==='ram'?RAM_GOLD:KILL_GOLD;H.fx(tg.x,tg.y,'dust',8)}
     }
   }
-  const before=S.enemies.length;S.enemies=S.enemies.filter(e=>e.hp>0);
-  if(S.raidActive&&before&&!S.enemies.length){S.raidActive=false;S.repelled++;S.res.gold+=10;H.say('Angriff abgewehrt! +10 💰');checkWin();save()}
+  // Jede Welle zählt einzeln als abgewehrt, sobald ihr letzter Feind fällt (Wellen können sich überlappen).
+  if(S.enemies.some(e=>e.hp<=0)){
+    const waves=new Set(S.enemies.map(e=>e.w));S.enemies=S.enemies.filter(e=>e.hp>0);
+    for(const w of waves)if(!S.enemies.some(e=>e.w===w)){S.repelled++;S.res.gold+=WAVE_GOLD;H.say('Angriff abgewehrt! +'+WAVE_GOLD+' 💰');checkWin();save()}
+    S.raidActive=S.enemies.length>0;
+  }
 }
 // Ein Simulationsschritt: Uhr weiterdrehen, ggf. Tageswechsel, dann Echtzeit-Update.
 function step(dt){
@@ -83,3 +87,6 @@ function step(dt){
   while(S.clock>=DAY){S.clock-=DAY;dayTick();if(S.won||S.over)return}
   update(dt);
 }
+// Bogenschützen ausbilden: braucht Kaserne, eine freie Person und ARCHER_GOLD. Rückgabe: Fehlertext oder ''.
+function recruitWhy(){if(!count('kaserne'))return 'Erst eine Kaserne bauen';if(S.idle<1)return 'Keine freien Leute';if(S.res.gold<ARCHER_GOLD)return 'Nicht genug Gold';return ''}
+function recruit(){const why=recruitWhy();if(why)return why;S.res.gold-=ARCHER_GOLD;S.archers++;assignWorkers();H.sfx('klick');return ''}
