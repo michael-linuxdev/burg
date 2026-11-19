@@ -11,7 +11,7 @@ let uid=1;
 
 const isUp=i=>{const b=S.grid[i].b;return !!b&&(b.type==='keep'||(isWall(b)&&!B[b.type].gate))};
 const upCap=i=>{const b=S.grid[i].b;return b?UPLACES[b.type]||0:0};
-function groundOk(i){const t=S.grid[i];return t.t===GRASS&&(!isWall(t.b)||B[t.b.type].gate)&&!(t.b&&t.b.type==='keep')}
+function groundOk(i){const t=S.grid[i];return walkT(t)&&(!isWall(t.b)||B[t.b.type].gate)&&!(t.b&&t.b.type==='keep')}
 function unitStep(a,b){// darf eine Einheit von Feld a nach Feld b?
   const ua=isUp(a),ub=isUp(b);
   if(ua&&ub)return true;
@@ -55,8 +55,8 @@ function order(list,t){
 function orderAttack(list,e){// auf einen Feind hetzen: Nahkämpfer laufen hin, Schützen nähern sich bis in Reichweite
   let n=0;for(const u of list){u.tgt=e;u.chase=0;n++}return n;
 }
-function unitRange(u){const U=UNIT[u.type];if(!U.range)return U.reach;const b=S.grid[u.i].b;
-  return b?b.type==='turm'?U.range+1.4:b.type==='keep'?U.range+.3:isWall(b)&&!B[b.type].gate?U.range+.8:U.range:U.range}
+function unitRange(u){const U=UNIT[u.type];if(!U.range)return U.reach;const t=S.grid[u.i],b=t.b,h=t.t===HILL?HILL_RANGE:0;
+  return h+(b?b.type==='turm'?U.range+1.4:b.type==='keep'?U.range+.3:isWall(b)&&!B[b.type].gate?U.range+.8:U.range:U.range)}
 // Höhe (in Feldern) oben auf einem Feld: Mauer 0,36, Turm 0,64, Bergfried 0,85. Beim Laufen wird zwischen zwei Feldern übergeblendet.
 function tileLift(i){const b=S.grid[i].b;if(!b)return 0;return b.type==='turm'?.64:b.type==='keep'?.85:isWall(b)&&!B[b.type].gate?.36:0}
 function unitLift(u){const a=tileLift(u.i);if(!u.path.length)return a;const n=u.path[0],f=Math.max(0,1-Math.hypot(n%COLS+.5-u.x,(n/COLS|0)+.5-u.y));return a+(tileLift(n)-a)*f}
@@ -72,7 +72,7 @@ function updateUnits(dt){
     if(u.path.length){
       const nx=u.path[0];
       if(!unitStep(u.i,nx)){const p=u.dest!=null?unitPath(u.i,u.dest):null;if(p&&p.length){u.path=p}else{u.path=[];u.dest=null;u.post=u.i}continue}
-      const tx=nx%COLS+.5,ty=(nx/COLS|0)+.5,dx=tx-u.x,dy=ty-u.y,d=Math.hypot(dx,dy),sp=U.spd*dt;
+      const tx=nx%COLS+.5,ty=(nx/COLS|0)+.5,dx=tx-u.x,dy=ty-u.y,d=Math.hypot(dx,dy),sp=U.spd*dt*(S.grid[nx].t===SWAMP?SWAMP_SLOW:1);
       if(d<=sp){u.x=tx;u.y=ty;u.i=nx;u.path.shift();if(!u.path.length)u.dest=null}else{u.x+=dx/d*sp;u.y+=dy/d*sp}
     }
     u.cd-=dt;

@@ -9,13 +9,22 @@ function waveList(k,R){
   list.sort(()=>Math.random()-.5);for(let i=0;i<nr;i++)list.push('ram');
   return list;
 }
+// Wölfe (Ereignis im Winter): kommen von einem zufälligen Rand, zählen nicht als Angriffswelle (w = 0)
+function spawnWolves(n){
+  ensure();const sides=['Norden','Süden','Westen','Osten'],side=sides[Math.floor(Math.random()*4)],edge=[];
+  for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){const on=side==='Norden'?r===0:side==='Süden'?r===ROWS-1:side==='Westen'?c===0:c===COLS-1;
+    const t=T(r,c);if(on&&walkT(t)&&!t.b&&isFinite(dist[r*COLS+c]))edge.push([r,c])}
+  if(!edge.length)return 0;const hp=Math.round((8+S.day*.4)*ETYPE.wolf.hpM);
+  for(let i=0;i<n;i++){const[r,c]=edge[Math.floor(Math.random()*edge.length)];S.enemies.push({w:0,type:'wolf',r,c,x:c+.5,y:r+.5,tr:null,tc:null,hp,max:hp,cd:0,ign:1,wait:i*.5,atk:null,ang:0,climb:0})}
+  S.raidActive=true;return n;
+}
 function spawnWave(){
   ensure();
   const R=mission().raid,k=++S.raids,hp=8+k*3,list=waveList(k,R);
   const side=S.raidSide||'Norden',edge=[];
   for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){
     const on=side==='Norden'?r===0:side==='Süden'?r===ROWS-1:side==='Westen'?c===0:c===COLS-1;
-    const t=T(r,c);if(on&&t.t===GRASS&&!t.b&&isFinite(dist[r*COLS+c]))edge.push([r,c]);
+    const t=T(r,c);if(on&&walkT(t)&&!t.b&&isFinite(dist[r*COLS+c]))edge.push([r,c]);
   }
   if(!edge.length){S.raidSide=null;return}
   list.forEach((type,i)=>{const[r,c]=edge[Math.floor(Math.random()*edge.length)],et=ETYPE[type],h=Math.round(hp*et.hpM);
@@ -72,7 +81,7 @@ function update(dt){
     }
     if(e.tr==null){decide(e);continue}
     if(e.climb>0){e.climb-=dt;continue}// Leiter anlegen und hinaufsteigen
-    const tx=e.tc+.5,ty=e.tr+.5,dx=tx-e.x,dy=ty-e.y,d=Math.hypot(dx,dy),sp=et.spd*dt;
+    const tx=e.tc+.5,ty=e.tr+.5,dx=tx-e.x,dy=ty-e.y,d=Math.hypot(dx,dy),sp=et.spd*dt*(T(e.tr,e.tc).t===SWAMP||T(e.r,e.c).t===SWAMP?SWAMP_SLOW:1);
     if(d<=sp){e.x=tx;e.y=ty;e.r=e.tr;e.c=e.tc;e.tr=null;e.tc=null}else{e.x+=dx/d*sp;e.y+=dy/d*sp}
   }
   // Feuer
@@ -96,7 +105,7 @@ function update(dt){
   // Jede Welle zählt einzeln als abgewehrt, sobald ihr letzter Feind fällt (Wellen können sich überlappen).
   if(S.enemies.some(e=>e.hp<=0)){
     const waves=new Set(S.enemies.map(e=>e.w));S.enemies=S.enemies.filter(e=>e.hp>0);
-    for(const w of waves)if(!S.enemies.some(e=>e.w===w)){S.repelled++;S.res.gold+=WAVE_GOLD;H.say('Angriff abgewehrt! +'+WAVE_GOLD+' 💰');checkWin();save()}
+    for(const w of waves)if(w>0&&!S.enemies.some(e=>e.w===w)){S.repelled++;S.res.gold+=WAVE_GOLD;H.say('Angriff abgewehrt! +'+WAVE_GOLD+' 💰');checkWin();save()}
     S.raidActive=S.enemies.length>0;
   }
 }

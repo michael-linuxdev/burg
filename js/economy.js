@@ -7,17 +7,18 @@ function factors(){
   if(S.fireDays>0)f.push(['Angst nach Bränden',-3]);
   if(S.cold)f.push(['Kälte ohne Brennholz',-4]);
   if(S.unpaid)f.push(['Sold nicht bezahlt',-3]);
+  if(S.ev&&S.ev.pest>0)f.push(['Seuche',-4]);
   return f;
 }
 // Jahreszeit-Faktor der Produktion: Herbst Obst ×2, Winter Viehweide ×0,5 (Felder und Obst ruhen ganz)
-function prodMult(type,sea){if(type==='obst'&&sea===2)return 2;if(type==='weide'&&sea===3)return .5;return 1}
+function prodMult(type,sea){const h=(type==='obst'||type==='farm')&&S.ev&&S.ev.harvest>0?.5:1;if(type==='obst'&&sea===2)return 2*h;if(type==='weide'&&sea===3)return .5;return h}
 function dayTick(){
   const sBefore=seasonOf(S.day);S.day++;const sea=seasonOf(S.day);
   assignWorkers();
   // Produktion in Stufen (tier): erst Rohstoffe, dann Mühle (1), dann Bäckerei und Werkstätten (2).
   // So wird frisch Geerntetes noch am selben Tag weiterverarbeitet.
   const bl=S.grid.map(t=>t.b).filter(b=>b&&b.on&&!b.cut);
-  const pass=tier=>bl.filter(b=>(B[b.type].tier||0)===tier).forEach(b=>{const rc=recipe(b);
+  const pass=tier=>bl.filter(b=>(B[b.type].tier||0)===tier&&(B[b.type].prod||B[b.type].modes)).forEach(b=>{const rc=recipe(b);
     if(sea===3&&(b.type==='obst'||b.type==='farm')){b.winter=1;return}b.winter=0;
     if(rc.use&&!has(rc.use)){b.starved=1;return}b.starved=0;if(rc.use)for(const[k,v]of Object.entries(rc.use))S.res[k]-=v;
     for(const[k,v]of Object.entries(rc.prod))S.res[k]+=Math.round(v*prodMult(b.type,sea))});
@@ -60,6 +61,7 @@ function dayTick(){
     if(S.nextRaid===3){const sides=S.raids<2?['Norden','Osten','Westen']:['Norden','Osten','Westen','Süden'];S.raidSide=sides[Math.floor(Math.random()*sides.length)];H.say('Späher melden Feinde aus dem '+H.side(S.raidSide)+'.')}
     if(S.nextRaid<=0){spawnWave();S.nextRaid=mission().raid.every}
   }
+  eventTick();
   checkWin();save();
 }
 function goalState(){return mission().goals.map(([t,n])=>{const v=t==='pop'?S.pop:t==='brot'?S.res.brot:t==='raids'?S.repelled:Math.round(S.pp);return{t,n,v,ok:v>=n}})}

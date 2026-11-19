@@ -7,12 +7,19 @@ const H={
   shot(){},           // Pfeil von (x1,y1) nach (x2,y2), Kartenkoordinaten; (…, feindlich, Höhe Start, Höhe Ziel)
   side:s=>s,          // Himmelsrichtung für die Anzeige (Querformat dreht die Karte)
   vibrate(){},
+  event(){},          // Ereignis mit Entscheidung anzeigen (S.ev.pending)
   won(){},lost(){}
 };
 let S=null,cds={},cacheGv=-1,dist=null,reach=null,prev=null;
 
 function rng(a){return()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
-function genMap(seed){
+// Kartengenerator. Die klassische 12 × 20-Karte der Kampagne bleibt Feld für Feld gleich (nur ein
+// Eisenvorkommen kommt hinzu); andere Größen nutzen den allgemeinen Generator mit Fluss, Hügeln und Sumpf.
+function genMap(seed,opt={}){
+  if(COLS===12&&ROWS===20&&!opt.wide)return genClassic(seed);
+  return genWide(seed,opt);
+}
+function genClassic(seed){
   const R=rng(seed),g=[];for(let i=0;i<N;i++)g.push({t:GRASS,b:null});
   const blob=(cr,cc,rad,t,den)=>{for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){const d=Math.hypot(r-cr,c-cc);if(d<rad&&R()<den*(1-d/rad*.55))g[r*COLS+c].t=t}};
   const j=v=>v+(R()-.5)*1.6;
@@ -20,10 +27,43 @@ function genMap(seed){
   blob(j(13),j(.6),1.6,TREE,.7);blob(j(18.6),j(10.6),1.9,TREE,.7);
   blob(j(1.2),j(9.5),2.3,ROCK,.8);blob(j(8.2),.5,1.7,ROCK,.85);blob(j(18.7),j(6.5),1.8,ROCK,.8);
   blob(15.2,10.6,1.6+R()*.6,WATER,1);
+  blob(j(10),.4,1.3,IRON,.95);
   for(let r=KR-2;r<=KR+2;r++)for(let c=KC-2;c<=KC+2;c++)g[r*COLS+c].t=GRASS;
   g[KI].b={type:'keep',id:0};
   return g;
 }
+function genWide(seed,opt){
+  const R=rng(seed^0x2f6b),g=[];for(let i=0;i<N;i++)g.push({t:GRASS,b:null});
+  const set=(r,c,t)=>{if(inb(r,c))g[r*COLS+c].t=t};
+  const blob=(cr,cc,rad,t,den,onlyOn)=>{for(let r=Math.floor(cr-rad);r<=cr+rad;r++)for(let c=Math.floor(cc-rad);c<=cc+rad;c++){if(!inb(r,c))continue;const d=Math.hypot(r-cr,c-cc);
+    if(d<rad&&R()<den*(1-d/rad*.55)&&(onlyOn==null||g[r*COLS+c].t===onlyOn))g[r*COLS+c].t=t}};
+  const far=(r,c,m)=>Math.hypot(r-KR,c-KC)>m;
+  const pick=(m)=>{for(let k=0;k<40;k++){const r=R()*ROWS,c=R()*COLS;if(far(r,c,m))return[r,c]}return[R()*ROWS,R()*COLS]};
+  const A=N/240;// Fläche im Verhältnis zur klassischen Karte
+  for(let k=0;k<Math.round(4*A);k++){const[r,c]=pick(4);blob(r,c,2+R()*2.5,HILL,.85)}
+  for(let k=0;k<Math.round(6*A);k++){const[r,c]=pick(4.5);blob(r,c,1.8+R()*2,TREE,.85)}
+  for(let k=0;k<Math.round(3.2*A);k++){const[r,c]=pick(5);blob(r,c,1.4+R()*1,ROCK,.85)}
+  // Eisen am Rand einiger Felsen und als eigene kleine Vorkommen
+  for(let k=0;k<Math.max(2,Math.round(1.6*A));k++){const[r,c]=pick(4);blob(r,c,1.1+R()*.5,IRON,.95)}
+  // Fluss: schlängelt sich von oben nach unten, mit Abstand zum Bergfried, eine Furt (Sumpf) weit weg vom Bergfried
+  if(opt.river!==false&&COLS>=16){
+    const side=R()<.5?-1:1,base=KC+side*Math.max(4,Math.round(COLS*.28));let c=base,ford=Math.floor(R()*3)+(R()<.5?1:ROWS-4);
+    for(let r=0;r<ROWS;r++){c+=Math.round((R()-.5)*1.6);c=Math.max(1,Math.min(COLS-2,c));if(Math.abs(c-KC)<4)c=KC+side*4;
+      const w=R()<.35?2:1;for(let k=0;k<w;k++){const t=(r>=ford&&r<ford+2)?SWAMP:WATER;set(r,c+k,t)}
+      if(r<ROWS-1&&R()<.45){const t=(r>=ford&&r<ford+2)?SWAMP:WATER;set(r,c+(R()<.5?-1:w),t)}}
+    // Sumpf an den Ufern
+    for(let k=0;k<Math.round(2*A);k++){const r=R()*ROWS;let cc=-1;for(let x=0;x<COLS;x++)if(g[Math.floor(r)*COLS+x].t===WATER){cc=x;break}
+      if(cc>=0&&far(r,cc,3.5))blob(r,cc+(R()<.5?-1:1),1.5+R(),SWAMP,.8,GRASS)}
+  }
+  for(let k=0;k<Math.round(1.2*A);k++){const[r,c]=pick(5);blob(r,c,1.6+R()*1.2,SWAMP,.85,GRASS)}
+  if(R()<.7){const[r,c]=pick(5);blob(r,c,1.4+R()*.8,WATER,1)}
+  for(let r=KR-2;r<=KR+2;r++)for(let c=KC-2;c<=KC+2;c++)if(inb(r,c))g[r*COLS+c].t=GRASS;
+  g[KI].b={type:'keep',id:0};
+  return g;
+}
+// Begehbar für Feinde und eigene Leute: Gras, Hügel, Sumpf und Wasser mit Brücke
+const walkT=t=>t.t===GRASS||t.t===HILL||t.t===SWAMP||(t.t===WATER&&!!t.b&&t.b.type==='bruecke');
+const buildT=t=>t.t===GRASS||t.t===HILL;
 const store={
   get(k){try{return typeof localStorage!=='undefined'?localStorage.getItem(k):null}catch(e){return null}},
   set(k,v){try{if(typeof localStorage!=='undefined')localStorage.setItem(k,v)}catch(e){}},
@@ -31,15 +71,19 @@ const store={
 };
 function getProg(){try{return JSON.parse(store.get(PROG))||{done:[]}}catch(e){return{done:[]}}}
 function setProg(p){store.set(PROG,JSON.stringify(p))}
-function newState(mi){
-  const m=mi<0?FREE:MISSIONS[mi],seed=mi<0?Math.floor(Math.random()*1e9):m.seed;
-  setMapSize(12,20,11,5);
+// Bergfried-Position für eine Kartengröße (klassisch 11/5, sonst etwas unterhalb der Mitte)
+function keepPos(cols,rows){return cols===12&&rows===20?[11,5]:[Math.round(rows*.55),Math.floor(cols/2)]}
+function newState(mi,opt={}){
+  const m=mi<0?FREE:MISSIONS[mi],seed=opt.seed!=null?opt.seed:mi<0?Math.floor(Math.random()*1e9):m.seed;
+  const ms=m.map||(mi<0&&MAPSIZE[opt.size])||MAPSIZE.klein,[kr,kc]=keepPos(ms.cols,ms.rows);
+  setMapSize(ms.cols,ms.rows,kr,kc);
   return{ver:SAVE_VER,cols:COLS,rows:ROWS,kr:KR,kc:KC,mi,seed,day:1,clock:0,res:{...m.res},pop:m.pop,pp:60,lastDelta:0,tax:2,ration:2,eff:2,prevEff:2,variety:1,units:[],idle:m.pop,
      nextRaid:m.raid?m.raid.start:null,raids:0,repelled:0,raidSide:null,raidActive:false,fireDays:0,cold:false,
-     keepLv:0,keepHp:KEEP_LV[0].hp,keepMax:KEEP_LV[0].hp,spill:{},nid:1,gv:0,grid:genMap(seed),enemies:[],over:false,won:false};
+     keepLv:0,keepHp:KEEP_LV[0].hp,keepMax:KEEP_LV[0].hp,spill:{},nid:1,gv:0,grid:genMap(seed),enemies:[],over:false,won:false,
+     ev:{cool:EVENT_COOL,pest:0,harvest:0,pending:null,log:[]}};
 }
-function startGame(mi){
-  S=newState(mi);cds={};cacheGv=-1;undoClear();
+function startGame(mi,opt){
+  S=newState(mi,opt);cds={};cacheGv=-1;undoClear();
   ensure();assignWorkers();save();
 }
 const mission=()=>S.mi<0?FREE:MISSIONS[S.mi];
@@ -47,7 +91,7 @@ const mission=()=>S.mi<0?FREE:MISSIONS[S.mi];
 // Automatischer Spielstand unter AUTO, drei feste Plätze unter SLOT+n. Jeder Stand trägt S.ver;
 // migrate() hebt ältere Stände auf das aktuelle Format. Der alte Schlüssel SAVE (v3) wird beim
 // ersten Start einmalig in den automatischen Spielstand übernommen und nicht gelöscht.
-const SAVE_VER=4;
+const SAVE_VER=5;
 function migrate(o){
   if(!o||!o.grid||o.gv==null)return null;
   const v=o.ver||1;
@@ -55,6 +99,12 @@ function migrate(o){
   if(v<3){for(const k in BASE)if(o.res[k]==null)o.res[k]=0;o.keepLv=0;o.spill={}}
   if(v<4){o.units=[];let id=1;for(let k=0;k<(o.archers||0);k++)o.units.push({id:id++,type:'archer',i:o.kr*o.cols+o.kc,x:o.kc+.5,y:o.kr+.5,hp:10,max:10,path:[],dest:null,cd:0,tgt:null,post:o.kr*o.cols+o.kc});delete o.archers}
   if(o.grid.length!==o.cols*o.rows)return null;
+  if(v<5){// Eisenvorkommen nachtragen: aus der gleichen Karte frisch erzeugt, nur auf freiem Gras oder Wald
+    o.ev={cool:EVENT_COOL,pest:0,harvest:0,pending:null,log:[]};
+    const keep=[COLS,ROWS,KR,KC];setMapSize(o.cols,o.rows,o.kr,o.kc);
+    try{const fresh=genMap(o.seed);fresh.forEach((t,i)=>{const x=o.grid[i];if(t.t===IRON&&!x.b&&(x.t===GRASS||x.t===TREE))x.t=IRON})}catch(e){}
+    setMapSize(...keep);
+  }
   for(const e of o.enemies)if(e.w==null)e.w=o.raids;
   o.ver=SAVE_VER;
   return o;
@@ -114,10 +164,11 @@ function dijkstra(cost){
 let distL=null;
 function ensure(){
   if(cacheGv===S.gv)return;cacheGv=S.gv;
-  dist=dijkstra(i=>{const t=S.grid[i];if(t.t!==GRASS)return Infinity;if(isWall(t.b))return 1+t.b.hp/5;return 1});
-  distL=dijkstra(i=>{const t=S.grid[i];if(t.t!==GRASS)return Infinity;if(isWall(t.b))return B[t.b.type].gate?1+t.b.hp/5:3;return 1});
+  const sw=t=>t.t===SWAMP?2:1;// Sumpf kostet doppelt (Feinde sind dort halb so schnell)
+  dist=dijkstra(i=>{const t=S.grid[i];if(!walkT(t))return Infinity;if(isWall(t.b))return 1+t.b.hp/5;return sw(t)});
+  distL=dijkstra(i=>{const t=S.grid[i];if(!walkT(t))return Infinity;if(isWall(t.b))return B[t.b.type].gate?1+t.b.hp/5:3;return sw(t)});
   reach=new Uint8Array(N);prev=new Int32Array(N).fill(-1);reach[KI]=1;const q=[KI];
-  const pass=i=>{const t=S.grid[i];return t.t===GRASS&&(!isWall(t.b)||B[t.b.type].gate)};
+  const pass=i=>{const t=S.grid[i];return walkT(t)&&(!isWall(t.b)||B[t.b.type].gate)};
   for(let h=0;h<q.length;h++){const u=q[h],ur=u/COLS|0,uc=u%COLS;
     for(const[dr,dc]of DIRS){const r=ur+dr,c=uc+dc;if(!inb(r,c))continue;const v=r*COLS+c;if(reach[v]||!pass(v))continue;reach[v]=1;prev[v]=u;q.push(v)}}
   S.grid.forEach((t,i)=>{if(t.b&&B[t.b.type]&&(B[t.b.type].prod||B[t.b.type].modes))t.b.cut=!reach[i]});
@@ -131,9 +182,10 @@ function reason(k,r,c){
   const t=T(r,c),d=B[k];
   if(d.tool)return t.b&&t.b.type!=='keep'?'':'Hier steht nichts zum Abreißen.';
   if(t.b)return 'Hier steht schon etwas.';
-  if(t.t!==GRASS)return 'Hier kann nicht gebaut werden.';
+  if(d.bridge){if(t.t!==WATER)return 'Brücken gehören aufs Wasser.';if(!DIRS.some(([a,b])=>inb(r+a,c+b)&&(walkT(T(r+a,c+b))||T(r+a,c+b).t===WATER)))return 'Hier kann keine Brücke stehen.'}
+  else if(!buildT(t))return t.t===SWAMP?'Im Sumpf kann nicht gebaut werden.':'Hier kann nicht gebaut werden.';
   if(occupied(r,c))return 'Feinde stehen im Weg.';
-  if(!nearOk(d,r,c))return d.near===TREE?'Holzfäller brauchen Bäume in der Nähe.':'Steinbrüche müssen direkt an Felsen stehen.';
+  if(!nearOk(d,r,c))return d.near===TREE?'Holzfäller brauchen Bäume in der Nähe.':d.near===IRON?'Eisenminen müssen direkt an einem Eisenvorkommen stehen.':'Steinbrüche müssen direkt an Felsen stehen.';
   return '';
 }
 // Führt eine Bauaktion aus. Rückgabe: Beschreibung der Änderung (für „Rückgängig“) oder null.
@@ -153,7 +205,7 @@ function act(k,r,c,quiet){
   return{kind:'add',r,c,id:t.b.id,cost:{...d.cost}};
 }
 let cutWarned=-1;
-function checkCut(){ensure();const n=S.grid.filter(t=>t.b&&t.b.cut).length;if(n&&cutWarned!==S.gv){cutWarned=S.gv;H.say(n+' Gebäude sind von der Burg abgeschnitten. Baue ein Tor.')}}
+function checkCut(){ensure();const n=S.grid.filter(t=>t.b&&t.b.cut).length;if(n&&cutWarned!==S.gv){cutWarned=S.gv;H.say(n+' Gebäude sind von der Burg abgeschnitten. Baue ein Tor oder eine Brücke.')}}
 function assignWorkers(){
   ensure();
   const bl=S.grid.map(t=>t.b).filter(b=>b&&B[b.type]&&B[b.type].w).sort((a,b)=>a.id-b.id);

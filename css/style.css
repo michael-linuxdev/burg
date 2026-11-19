@@ -191,3 +191,9 @@ canvas{position:absolute;inset:0;width:100%;height:100%;touch-action:none;displa
 .land .chip{flex:1 1 auto;justify-content:center;padding:3px 4px}
 .land .chip img{margin:-6px -4px -4px -8px}
 .land.troops #hud{bottom:124px}
+/* Markt */
+.market li{align-items:center}
+.market .tr{display:flex;gap:4px;flex:0 0 auto}
+.market .btn{min-height:40px;padding:4px 8px;font-size:13px;white-space:nowrap}
+#sizeseg button{min-height:40px}
+#sizeseg small{color:inherit;opacity:.75}

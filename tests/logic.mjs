@@ -43,7 +43,7 @@ t('Burgausbau: Holzburg → Steinburg → Festung', () => {
 t('Migration: Spielstand Version 2 bekommt neue Rohstoffe und Burgstufe', () => {
   const g = fresh(); const o = g.run('(()=>{const o=JSON.parse(JSON.stringify(S));o.ver=2;delete o.keepLv;delete o.res.eisen;delete o.res.bogen;delete o.spill;return o})()');
   g.ctx.__o = o; const m = g.run('migrate(__o)');
-  eq([m.ver, m.keepLv, m.res.eisen, m.res.bogen, typeof m.spill], [4, 0, 0, 0, 'object']);
+  eq([m.ver, m.keepLv, m.res.eisen, m.res.bogen, typeof m.spill], [g.run("SAVE_VER"), 0, 0, 0, 'object']);
 });
 t('Überlappende Wellen zählen einzeln', () => {
   const g = fresh(); g.run('S.raidSide="Norden";spawnWave();S.raidSide="Norden";spawnWave()');
@@ -97,6 +97,6 @@ t('Feindliche Bogenschützen beschießen Truppen auf der Mauer (mit Deckung)', (
 });
 t('Migration: Version 3 mit Bogenschützen wird zu Einheiten', () => {
   const g = fresh(); const o = g.run('(()=>{const o=JSON.parse(JSON.stringify(S));o.ver=3;o.archers=4;delete o.units;return o})()');
-  g.ctx.__o = o; const m = g.run('migrate(__o)'); eq([m.ver, m.units.length, m.units[0].type, m.archers], [4, 4, 'archer', undefined]);
+  g.ctx.__o = o; const m = g.run('migrate(__o)'); eq([m.ver, m.units.length, m.units[0].type, m.archers], [g.run("SAVE_VER"), 4, 'archer', undefined]);
 });
 if (failed) { console.error(`✗ ${failed} Logik-Test(s) fehlgeschlagen`); process.exitCode = 1; } else console.log('Logik-Tests bestanden');

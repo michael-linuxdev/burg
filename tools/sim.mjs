@@ -13,7 +13,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-export const LOGIC = ['data.js', 'core.js', 'economy.js', 'combat.js', 'units.js'];
+export const LOGIC = ['data.js', 'core.js', 'economy.js', 'combat.js', 'units.js', 'events.js'];
 
 // Neuen, isolierten Spielkontext erzeugen. Math.random wird durch einen Seed-Zufall ersetzt (reproduzierbar).
 export function makeGame(seed = 1) {
@@ -98,14 +98,18 @@ function bot(g) {
       const gi = (KR + R - 1) * COLS + KC; g.ctx.__gi = gi; g.run("order(S.units.filter(u=>u.type==='spear'),__gi)");
     }
   }
+  // Ereignisse: bei Seuche eine Apotheke, Feste nur mit Goldpolster und sinkender Beliebtheit
+  if (S.ev.pending) g.run(S.ev.pending.id !== 'trader' && S.pp < 62 && S.res.gold > 110 ? 'resolveEvent(0)' : 'resolveEvent(-1)');
+  if (S.ev.pest > 0 && cnt('apotheke') < 1 && build('apotheke')) return;
   if (cnt('kapelle') < 2 && S.pp < 60 && build('kapelle')) return;
   // Brände löschen
   for (const t of S.grid) if (t.b && t.b.burn && S.res.gold >= 2) { S.res.gold -= 2; t.b.burn = 0; }
 }
 
-export function playMission(mi, seed, { maxDays = 160, dt = 0.05, verbose = false, until = 0 } = {}) {
+export function playMission(mi, seed, { maxDays = 160, dt = 0.05, verbose = false, until = 0, setup = '' } = {}) {
   const g = makeGame(seed);
   g.run(`startGame(${mi})`);
+  if (setup) g.run(setup); // z. B. Ereignisse für Vergleiche abschalten
   let minKeep = 150, maxGold = 0, t = 0, lastBot = -1;
   const days = [];
   while (true) {
