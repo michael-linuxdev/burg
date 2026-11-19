@@ -61,7 +61,7 @@ function update(dt){
     if(b.hp<=0){H.say(B[b.type].n+' ist abgebrannt.');H.fx(c+.5,r+.5,'smoke',14);t.b=null;S.fireDays=3;bump();assignWorkers()}
   });
   // Schützen: Bergfried (2 Wachen + bis zu 3 Schützen, Reichweite 3,5), Türme (je bis zu 3, Reichweite 4,6), Rest in den Bergfried.
-  let a=S.archers;const sh=[{k:'keep',x:KC+.5,y:KR+.5,range:3.5,n:2+Math.min(a,3)}];a-=Math.min(a,3);
+  let a=S.archers;const sh=[{k:'keep',x:KC+.5,y:KR+.5,range:3.5,n:KEEP_LV[S.keepLv].guards+Math.min(a,3)}];a-=Math.min(a,3);
   S.grid.forEach((t,i)=>{if(t.b&&t.b.type==='turm'){const k=Math.min(a,3);a-=k;t.b.arch=k;if(k)sh.push({k:'t'+i,x:i%COLS+.5,y:(i/COLS|0)+.5,range:4.6,n:k})}});
   if(a>0)sh[0].n+=a;
   for(const s of sh){
@@ -88,5 +88,6 @@ function step(dt){
   update(dt);
 }
 // Bogenschützen ausbilden: braucht Kaserne, eine freie Person und ARCHER_GOLD. Rückgabe: Fehlertext oder ''.
-function recruitWhy(){if(!count('kaserne'))return 'Erst eine Kaserne bauen';if(S.idle<1)return 'Keine freien Leute';if(S.res.gold<ARCHER_GOLD)return 'Nicht genug Gold';return ''}
-function recruit(){const why=recruitWhy();if(why)return why;S.res.gold-=ARCHER_GOLD;S.archers++;assignWorkers();H.sfx('klick');return ''}
+function recruitWhy(u='archer'){const U=UNIT[u];if(!count('kaserne'))return 'Erst eine Kaserne bauen';if(S.idle<1)return 'Keine freien Leute';
+  if(S.res.gold<U.gold)return 'Nicht genug Gold';const miss=Object.keys(U.need).find(k=>S.res[k]<U.need[k]);if(miss)return 'Keine '+RNAME[miss]+' in der Rüstkammer';return ''}
+function recruit(u='archer'){const why=recruitWhy(u);if(why)return why;const U=UNIT[u];S.res.gold-=U.gold;for(const[k,v]of Object.entries(U.need))S.res[k]-=v;S.archers++;assignWorkers();H.sfx('klick');return ''}
