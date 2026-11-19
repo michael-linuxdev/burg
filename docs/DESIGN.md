@@ -311,6 +311,8 @@ Geräuschnamen für `sfx`: `bau`, `stein` (Mauerteil gesetzt), `abriss`, `feuer`
 
 Die Darstellung darf den Zustand nur über die Logik-Funktionen ändern (`act`, `startGame`, Hof-Einstellungen in `S.tax`/`S.ration`, Ausbilden, Befehle `order`/`orderAttack`, `trade`, `resolveEvent`).
 
+Leistung (Wärme auf dem Handy): Zeichenfläche höchstens 2-fache Pixeldichte (Grafik „Hoch“; „Mittel“ 1,5, „Niedrig“ 1). Bildrate einstellbar (30 oder 60, Vorgabe 30 auf Touch-Geräten); bei Pause 15, bei offenem Menü 5 Bilder pro Sekunde, nach einer Berührung 1,5 s lang wieder die eingestellte Rate. Die Dunkel-Ebene der Nacht wird in halber Auflösung gerechnet. Kein Weichzeichner (backdrop-filter) hinter HUD und Leisten. Die Simulation nutzt die echte vergangene Zeit und ist von der Bildrate unabhängig.
+
 Nacht: Abdunklung höchstens 48 % (einfache Grafikstufe 40 %), Lichtquellen schneiden Lichtkegel heraus. Mauern verbinden sich optisch nicht mit dem Bergfried; der Bergfried wird nach den übrigen Gebäuden seiner Reihe gezeichnet.
 
 Spielprotokoll (`js/playlog.js`, reine Darstellung): umhüllt Logik-Funktionen (`startGame`, `act`, `recruit`, `order…`, `trade`, `resolveEvent`, `dayTick`, `spawnWave` …) und `H.say/won/lost`, ohne ihr Verhalten zu ändern, und schreibt Einträge `[Zeit, Tag, Art, Text]` nach `localStorage['zinnenwerk-playlog']` (höchstens 4000, älteste fallen weg). Dazu alle 15 s die Bildrate, Fehler und eigene Notizen. Abschaltbar in den Einstellungen.

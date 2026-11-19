@@ -1,7 +1,7 @@
 // Burgwacht – Service Worker: App-Shell offline verfügbar machen.
 // Bei jeder Änderung an Spieldateien VERSION erhöhen und neue Dateien in SHELL aufnehmen,
 // damit Spieler das Update bekommen. Ein neuer Worker wartet, bis der Spieler „Aktualisieren“ tippt.
-const VERSION = 'burgwacht-v6.0.0';
+const VERSION = 'burgwacht-v6.1.0';
 const SHELL = [
   './',
   'index.html',
