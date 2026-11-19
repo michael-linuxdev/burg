@@ -28,3 +28,5 @@ jobs:
         run: npm run tutorial
       - name: Truppen (Ausbilden, Auswahl per Rahmen, Befehle)
         run: npm run troops
+      - name: Welt (große Karte, Brücke, Ereignis, Markt)
+        run: npm run world

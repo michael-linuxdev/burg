@@ -545,6 +545,15 @@ const iconCache={};
 function makeIcon(k){
   if(/^keep\d$/.test(k)){if(iconCache[k])return iconCache[k];const keepS=SEASON,keepD=DARK;SEASON=1;DARK=0;
     const s2=96,cn=document.createElement('canvas');cn.width=s2;cn.height=s2;const g=cn.getContext('2d'),C=40;drawKeep(g,(s2-C)/2,(s2-C)/2+6,C,+k[4]);SEASON=keepS;DARK=keepD;return iconCache[k]=cn.toDataURL()}
+  if(k==='berater'){if(iconCache[k])return iconCache[k];const cn=document.createElement('canvas');cn.width=cn.height=72;const g=cn.getContext('2d'),c=36;
+    // Berater: rundes Gesicht, grauer Bart, blaue Kappe mit goldener Feder
+    g.fillStyle='#2E5A88';g.beginPath();g.arc(c,c+30,26,Math.PI,0);g.fill();g.fillStyle=PAL.gold;g.fillRect(c-3,c+8,6,20);
+    g.fillStyle='#F1D3B5';circ(g,c,c-2,17);g.fillStyle='#D9D4CC';g.beginPath();g.moveTo(c-15,c+2);g.quadraticCurveTo(c,c+30,c+15,c+2);g.quadraticCurveTo(c,c+10,c-15,c+2);g.fill();
+    g.fillStyle='#3B2A1A';circ(g,c-6,c-5,2.2);circ(g,c+6,c-5,2.2);g.strokeStyle='#A07A5A';g.lineWidth=1.5;g.beginPath();g.arc(c,c+3,4,.2,Math.PI-.2);g.stroke();
+    g.fillStyle='#E9A08A';circ(g,c-10,c+1,3);circ(g,c+10,c+1,3);
+    g.fillStyle='#1F4E79';g.beginPath();g.ellipse(c,c-15,19,9,0,Math.PI,0);g.fill();g.fillRect(c-19,c-16,38,5);g.fillStyle=PAL.gold;g.fillRect(c-19,c-13,38,2);
+    g.strokeStyle=PAL.gold;g.lineWidth=3;g.beginPath();g.moveTo(c+10,c-17);g.quadraticCurveTo(c+24,c-30,c+28,c-36);g.stroke();
+    return iconCache[k]=cn.toDataURL()}
   if(/^unit:/.test(k)){if(iconCache[k])return iconCache[k];const t=k.slice(5),s2=64,cn=document.createElement('canvas');cn.width=s2;cn.height=s2;const g=cn.getContext('2d'),C=t==='knight'?118:132;
     drawUnit(g,{type:t,hp:1,max:1,path:[]},C,s2/2-(t==='knight'?4:6),s2*.82,false);return iconCache[k]=cn.toDataURL()}
   if(iconCache[k])return iconCache[k];const keepS=SEASON,keepD=DARK;SEASON=1;DARK=0;

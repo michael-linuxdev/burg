@@ -1,5 +1,5 @@
 // Ausführlicher Oberflächentest mit Screenshots (lokal): node tests/e2e.mjs [Zielordner]
-// Prüft Hoch-, Querformat und Desktop: Menü, Tag, Nacht, Winter, offene Menüs, laufender Angriff, Truppenmodus. Keine Konsolenfehler.
+// Prüft Hoch-, Querformat und Desktop: Menü, Tag, Nacht, Winter, offene Menüs, laufender Angriff, Truppenmodus, große Karte, Ereignis, Markt. Keine Konsolenfehler.
 import fs from 'node:fs';
 import { startServer } from './serve.mjs';
 import { chromium, openPage, startMission, buildViaUi } from './helpers.mjs';
@@ -43,6 +43,13 @@ for (const [name, viewport] of VIEWS) {
     await page.evaluate(() => { SET.quality = 'hoch'; terrKey = ''; resize(); });
     await page.evaluate(() => openMenu()); await page.waitForTimeout(200); await shot('menue-im-spiel');
     await page.locator('#openSettings').click(); await page.waitForTimeout(200); await shot('einstellungen'); await page.locator('#setClose').click();
+    // Etappe 4: große Karte mit Fluss, Ereignis-Dialog und Markt
+    await page.evaluate(() => { freeSize = 'gross'; newGame(-1); closeModal(); }); await page.waitForTimeout(800); await shot('welt');
+    await page.evaluate(() => { zoomAt(innerWidth / 2, innerHeight / 2, 1); }); await page.waitForTimeout(300); await shot('welt-ganz');
+    await page.evaluate(() => { focusKeep(); S.res.gold = 120; S.pop = 20; triggerEvent('trader'); }); await page.waitForTimeout(300); await shot('ereignis');
+    await page.locator('#mBtns .btn').last().click();
+    await page.evaluate(() => { S.res.holz = 100; S.res.stein = 50; for (let r = KR + 1; r < ROWS; r++) for (let c = 0; c < COLS; c++) if (!count('markt') && !reason('markt', r, c)) act('markt', r, c, true); });
+    await page.locator('#openCourt').click(); await page.evaluate(() => $('marketH').scrollIntoView()); await page.waitForTimeout(200); await shot('markt'); await page.locator('#courtWrap [data-close]').click();
     if (errors.length) { bad++; console.error(name, errors); } else console.log('✓', name, 'ohne Konsolenfehler');
     await ctx.close();
   }

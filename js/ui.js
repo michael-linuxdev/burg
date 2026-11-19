@@ -33,7 +33,14 @@ const tq=[];let tBusy=false;
 function toast(m){if(tq.length&&tq[tq.length-1]===m)return;tq.push(m);if(tq.length>4)tq.shift();if(!tBusy)nextToast()}
 H.say=toast;
 H.vibrate=p=>{if(!SET.vibrate)return;try{navigator.vibrate&&navigator.vibrate(p)}catch(e){}};
-function nextToast(){const el=$('toast');if(!tq.length){tBusy=false;el.classList.remove('show');return}tBusy=true;el.textContent=tq.shift();el.classList.add('show');setTimeout(()=>{el.classList.remove('show');setTimeout(nextToast,220)},2400)}
+// Meldungen als Banner: führendes Symbol in eine Plakette, Farbe nach Art (schlecht, gut, neutral)
+const EMO=/^(\p{Extended_Pictographic}(\uFE0F|\u200D\p{Extended_Pictographic})*)\s*/u;
+const BAD=/Angriff:|gefallen|brennt|Brand|abgebrannt|Seuche|Wölfe|Blitz|hungert|frieren|fehlt|murrt|verlassen|verfallen|Missernte|abgeschnitten|Nicht genug|Kein|nicht/i;
+const GOOD=/abgewehrt|geschafft|gelöscht|besiegt|bereit|Ausgebaut|Gespeichert|geladen|vorüber|Abgemacht|Viel Erfolg|wieder/i;
+function toastHtml(m){const e=m.match(EMO),ic=e?e[1]:'📜',t=e?m.slice(e[0].length):m;const kind=BAD.test(t)?'bad':GOOD.test(t)?'good':'info';
+  return[`<span class="ti">${ic}</span><span class="tx"></span>`,t,kind]}
+function nextToast(){const el=$('toast');if(!tq.length){tBusy=false;el.classList.remove('show');return}tBusy=true;
+  const[h,t,kind]=toastHtml(tq.shift());el.innerHTML=h;el.querySelector('.tx').textContent=t;el.dataset.kind=kind;el.classList.add('show');setTimeout(()=>{el.classList.remove('show');setTimeout(nextToast,220)},2400)}
 const GROUPS=[['Wohnen und Glaube',['haus','kapelle','brunnen','apotheke']],['Nahrung',['obst','farm','muehle','baecker']],['Rohstoffe',['holzf','stein','mine','weide']],['Lager und Handel',['lager','korn','ruest','markt']],['Waffen',['bogner','schmied','gerber']],['Burg',['mauer','tor','turm','kaserne']],['Wege',['bruecke']],['Werkzeug',['abriss']]];
 function buildCards(){
   const el=$('cards');el.innerHTML='';
@@ -136,24 +143,27 @@ let hudT=0;const BASE_SHOW=['holz','stein','weizen','mehl','brot','aepfel','gold
 function hud(force){
   const t=performance.now();if(!force&&t-hudT<200)return;hudT=t;
   const sea=seasonOf(S.day),tod=timeOfDay();
-  $('day').textContent='Tag '+S.day;$('season').textContent=SEAS[sea][0]+' '+SEAS[sea][1];$('clock').textContent=tod.label[0];$('clock').title=tod.label[1];$('clock').setAttribute('aria-label',tod.label[1]);
+  $('day').textContent='Tag '+S.day;$('season').textContent=SEAS[sea][0];$('seasonName').textContent=SEAS[sea][1];$('clock').textContent=tod.label[0]+' '+tod.label[1];
+  $('medal').style.setProperty('--p',(S.clock/DAY).toFixed(3));$('medal').title=SEAS[sea][1]+', noch '+(SLEN-((S.day-1)%SLEN))+' Tage';
   // Grundrohstoffe immer, weitere nur wenn vorhanden oder ein Erzeuger steht. Fast volle Lager werden markiert.
   const prodBy=k=>Object.keys(B).some(t=>(B[t].prod&&B[t].prod[k]||B[t].modes&&Object.values(B[t].modes).some(m=>m.prod[k]))&&count(t));
   $('res').innerHTML=RES.filter(([k])=>BASE_SHOW.includes(k)||S.res[k]>0||prodBy(k)).map(([k,i])=>{const c=resCap(k),v=Math.floor(S.res[k]),cls=S.spill[k]?'spill':v>=c*.9?'full':'';
-    return `<span class="${cls}" title="${RNAME[k]}${isFinite(c)?' ('+v+' von '+c+')':''}">${i} <b>${v}</b></span>`}).join('');
-  $('popl').textContent='👥 '+S.pop+'/'+cap()+(S.idle>0?' ('+S.idle+' frei)':'');
+    return `<span class="rc ${cls}" title="${RNAME[k]}${isFinite(c)?' ('+v+' von '+c+')':''}"><i>${i}</i><b>${v}</b></span>`}).join('');
+  $('popl').innerHTML='<i>👥</i><b>'+S.pop+'</b><small>/'+cap()+'</small>'+(S.idle>0?'<em title="ohne Arbeit">'+S.idle+' frei</em>':'');
   $('ppn').textContent=Math.round(S.pp);
   const pb=$('ppb');pb.style.width=S.pp+'%';pb.style.background=S.pp>=50?'var(--good)':S.pp>=25?'var(--gold)':'var(--danger)';
   const tr=$('trend');tr.textContent=S.lastDelta>0?'▲':S.lastDelta<0?'▼':'';tr.className=S.lastDelta>0?'plus':'minus';
   const rd=$('raid');
-  if(S.enemies.length){rd.textContent='⚔️ '+S.enemies.length+' Feinde';rd.className='soon'}
-  else if(S.nextRaid==null){rd.textContent='🕊️ Friedlich';rd.className=''}
-  else{rd.textContent='⚔️ in '+S.nextRaid+(S.nextRaid===1?' Tag':' Tagen');rd.className=S.nextRaid<=3?'soon':''}
-  $('dayprog').firstChild.style.width=(S.clock/DAY*100)+'%';
+  if(S.enemies.length){rd.innerHTML='<i>⚔️</i><b>'+S.enemies.length+'</b><small>Feinde</small>';rd.className='war'}
+  else if(S.nextRaid==null){rd.innerHTML='<i>🕊️</i><small>Friedlich</small>';rd.className='calm'}
+  else{rd.innerHTML='<i>⚔️</i><small>in</small><b>'+S.nextRaid+'</b><small>'+(S.nextRaid===1?'Tag':'Tagen')+'</small>';rd.className=S.nextRaid<=3?'soon':''}
   const m=mission();
-  if(m.goals.length)$('goal').innerHTML='Ziel: '+goalState().map(g=>`<span class="${g.ok?'done':''}">${GOALTXT[g.t][0]} ${Math.min(g.v,g.n)}/${g.n} ${GOALTXT[g.t][1]}</span>`).join(', ');
-  else $('goal').textContent='Freies Spiel: '+S.repelled+(S.repelled===1?' Angriff':' Angriffe')+' abgewehrt';
-  $('hint').textContent=hint();
+  // Auftrag: jedes Ziel als kleine Fortschrittsleiste
+  const gs=m.goals.length?goalState():[];
+  const gh=m.goals.length?gs.map(g=>`<span class="gq${g.ok?' done':''}" title="${GOALTXT[g.t][1]}"><i>${GOALTXT[g.t][0]}</i><span class="gb"><b style="width:${Math.min(100,Math.round(g.v/g.n*100))}%"></b></span><em>${Math.min(g.v,g.n)}/${g.n}</em><small>${GOALTXT[g.t][1]}</small></span>`).join('')
+    :`<span class="gq"><i>⚔️</i><em>${S.repelled}</em><small>${S.repelled===1?'Angriff':'Angriffe'} abgewehrt</small></span>`;
+  const gk=gh+'|'+(m.goals.length?1:0);if($('goal').dataset.k!==gk){$('goal').dataset.k=gk;$('goal').innerHTML=`<span class="gl">${m.goals.length?'Auftrag':'Endlos'}</span>`+gh}
+  const ht=hint();if($('hint').textContent!==ht)$('hint').textContent=ht;
   $('tUndo').disabled=!canUndo();troopBar();
   const ta=!sel&&troopsAvail();if(($('openTroops').style.display!=='none')!==ta){$('openTroops').style.display=ta?'flex':'none';requestAnimationFrame(resize)}
   if($('courtWrap').classList.contains('open'))court();
@@ -369,7 +379,7 @@ function loop(t){
 const saved=loadSave();
 if(saved)resume(saved);
 else startGame(0);
-buildCards();buildRecruits();$('buildIc').src=makeIcon('haus');
+buildCards();buildRecruits();$('buildIc').src=makeIcon('haus');$('advisor').src=makeIcon('berater');
 new ResizeObserver(resize).observe($('stage'));new ResizeObserver(resize).observe($('hud'));resize();
 hud(true);openMenu();
 requestAnimationFrame(loop);

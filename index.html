@@ -23,7 +23,7 @@
   <div id="hud" class="glass">
     <div class="r1">
       <button id="menuBtn" aria-label="Menü">☰</button>
-      <div id="when"><span id="day">Tag 1</span><span id="season"></span><span id="clock"></span></div>
+      <div id="when"><span id="medal" aria-hidden="true"><span id="season"></span></span><span class="dtxt"><b id="day">Tag 1</b><small><span id="seasonName"></span> · <span id="clock"></span></small></span></div>
       <div class="speed" role="group" aria-label="Spieltempo">
         <button data-s="0" aria-pressed="false" aria-label="Pause">II</button>
         <button data-s="1" aria-pressed="true">1×</button>
@@ -32,13 +32,12 @@
     </div>
     <div id="res"></div>
     <div id="status">
-      <span id="popl">👥</span>
-      <span class="pp">❤️ <span id="ppn">60</span><span class="ppbar"><i id="ppb"></i></span><span id="trend"></span></span>
+      <span id="popl" class="chip2"></span>
+      <span class="pp" title="Beliebtheit"><span class="hrt">❤️</span><span class="ppbar"><i id="ppb"></i></span><b id="ppn">60</b><span id="trend"></span></span>
       <span id="raid"></span>
     </div>
-    <div id="dayprog"><i></i></div>
     <div id="goal"></div>
-    <div id="hint" aria-live="polite"></div>
+    <div id="advice"><img id="advisor" alt=""><div id="hint" aria-live="polite"></div></div>
   </div>
   <div id="toast" role="status"></div>
   <button id="update" class="glass" hidden>✨ Neue Version verfügbar – tippen zum Aktualisieren</button>

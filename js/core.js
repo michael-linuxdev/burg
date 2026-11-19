@@ -40,6 +40,7 @@ function genWide(seed,opt){
   const far=(r,c,m)=>Math.hypot(r-KR,c-KC)>m;
   const pick=(m)=>{for(let k=0;k<40;k++){const r=R()*ROWS,c=R()*COLS;if(far(r,c,m))return[r,c]}return[R()*ROWS,R()*COLS]};
   const A=N/240;// Fläche im Verhältnis zur klassischen Karte
+  let fordRow=-1;
   for(let k=0;k<Math.round(4*A);k++){const[r,c]=pick(4);blob(r,c,2+R()*2.5,HILL,.85)}
   for(let k=0;k<Math.round(6*A);k++){const[r,c]=pick(4.5);blob(r,c,1.8+R()*2,TREE,.85)}
   for(let k=0;k<Math.round(3.2*A);k++){const[r,c]=pick(5);blob(r,c,1.4+R()*1,ROCK,.85)}
@@ -47,7 +48,7 @@ function genWide(seed,opt){
   for(let k=0;k<Math.max(2,Math.round(1.6*A));k++){const[r,c]=pick(4);blob(r,c,1.1+R()*.5,IRON,.95)}
   // Fluss: schlängelt sich von oben nach unten, mit Abstand zum Bergfried, eine Furt (Sumpf) weit weg vom Bergfried
   if(opt.river!==false&&COLS>=16){
-    const side=R()<.5?-1:1,base=KC+side*Math.max(4,Math.round(COLS*.28));let c=base,ford=Math.floor(R()*3)+(R()<.5?1:ROWS-4);
+    const side=R()<.5?-1:1,base=KC+side*Math.max(4,Math.round(COLS*.28));let c=base,ford=Math.floor(R()*3)+(R()<.5?1:ROWS-4);fordRow=ford;
     for(let r=0;r<ROWS;r++){c+=Math.round((R()-.5)*1.6);c=Math.max(1,Math.min(COLS-2,c));if(Math.abs(c-KC)<4)c=KC+side*4;
       const w=R()<.35?2:1;for(let k=0;k<w;k++){const t=(r>=ford&&r<ford+2)?SWAMP:WATER;set(r,c+k,t)}
       if(r<ROWS-1&&R()<.45){const t=(r>=ford&&r<ford+2)?SWAMP:WATER;set(r,c+(R()<.5?-1:w),t)}}
@@ -58,6 +59,19 @@ function genWide(seed,opt){
   for(let k=0;k<Math.round(1.2*A);k++){const[r,c]=pick(5);blob(r,c,1.6+R()*1.2,SWAMP,.85,GRASS)}
   if(R()<.7){const[r,c]=pick(5);blob(r,c,1.4+R()*.8,WATER,1)}
   for(let r=KR-2;r<=KR+2;r++)for(let c=KC-2;c<=KC+2;c++)if(inb(r,c))g[r*COLS+c].t=GRASS;
+  // Furt erzwingen: in den Furt-Reihen wird alles Wasser zu Sumpf
+  if(fordRow>=0)for(let r=fordRow;r<fordRow+2;r++)for(let c=0;c<COLS;c++)if(g[r*COLS+c].t===WATER)g[r*COLS+c].t=SWAMP;
+  // Jede Kartenseite braucht einen Weg zum Bergfried: sonst eine Schneise schlagen (Wald/Fels → Gras, Wasser → Sumpf)
+  const open=t=>t===GRASS||t===HILL||t===SWAMP;
+  for(let side=0;side<4;side++){
+    const seen=new Uint8Array(N),q=[KI];seen[KI]=1;let ok=false;
+    for(let h=0;h<q.length&&!ok;h++){const u=q[h],ur=u/COLS|0,uc=u%COLS;
+      if((side===0&&ur===0)||(side===1&&ur===ROWS-1)||(side===2&&uc===0)||(side===3&&uc===COLS-1))ok=true;
+      for(const[dr,dc]of[[1,0],[-1,0],[0,1],[0,-1]]){const r=ur+dr,c=uc+dc;if(r<0||r>=ROWS||c<0||c>=COLS)continue;const v=r*COLS+c;if(!seen[v]&&open(g[v].t)){seen[v]=1;q.push(v)}}}
+    if(ok)continue;
+    let r=KR,c=KC;const tr=side===0?0:side===1?ROWS-1:KR,tc=side===2?0:side===3?COLS-1:KC;
+    while(r!==tr||c!==tc){if(r!==tr)r+=Math.sign(tr-r);else c+=Math.sign(tc-c);const x=g[r*COLS+c];if(!open(x.t))x.t=x.t===WATER?SWAMP:GRASS}
+  }
   g[KI].b={type:'keep',id:0};
   return g;
 }
