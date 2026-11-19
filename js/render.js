@@ -596,13 +596,15 @@ function timeOfDay(){
 function nightPass(g,amount){
   if(amount<.02)return;
   if(!Q().light){g.fillStyle=`rgba(8,14,44,${.4*amount})`;g.fillRect(ox,oy,scN()*cell,srN()*cell);return}
-  if(!dk||dk.width!==cv.width||dk.height!==cv.height){dk=document.createElement('canvas');dk.width=cv.width;dk.height=cv.height;dkg=dk.getContext('2d')}
+  // Dunkel-Ebene in halber Auflösung (weich genug, spart drei Viertel der Pixel)
+  const hw=Math.ceil(cv.width/2),hh=Math.ceil(cv.height/2);
+  if(!dk||dk.width!==hw||dk.height!==hh){dk=document.createElement('canvas');dk.width=hw;dk.height=hh;dkg=dk.getContext('2d')}
   dkg.setTransform(1,0,0,1,0,0);dkg.globalCompositeOperation='source-over';dkg.clearRect(0,0,dk.width,dk.height);
-  dkg.setTransform(dpr,0,0,dpr,0,0);dkg.fillStyle=`rgba(8,14,44,${.48*amount})`;dkg.fillRect(ox,oy,scN()*cell,srN()*cell);
+  dkg.setTransform(dpr/2,0,0,dpr/2,0,0);dkg.fillStyle=`rgba(8,14,44,${.48*amount})`;dkg.fillRect(ox,oy,scN()*cell,srN()*cell);
   dkg.globalCompositeOperation='destination-out';
   const all=glows.concat(lights.map(l=>({x:l.x,y:l.y,r:l.r*1.3,a:.95})));
   for(const l of all){const gr=dkg.createRadialGradient(l.x,l.y,0,l.x,l.y,l.r);gr.addColorStop(0,`rgba(0,0,0,${l.a})`);gr.addColorStop(1,'rgba(0,0,0,0)');dkg.fillStyle=gr;dkg.fillRect(l.x-l.r,l.y-l.r,l.r*2,l.r*2)}
-  g.save();g.setTransform(1,0,0,1,0,0);g.drawImage(dk,0,0);g.restore();
+  g.save();g.setTransform(1,0,0,1,0,0);g.drawImage(dk,0,0,cv.width,cv.height);g.restore();
   if(Q().light<2)return;
   g.globalCompositeOperation='lighter';
   for(const l of glows){const gr=g.createRadialGradient(l.x,l.y,0,l.x,l.y,l.r*.8);gr.addColorStop(0,`rgba(255,170,80,${.28*amount})`);gr.addColorStop(1,'rgba(255,170,80,0)');g.fillStyle=gr;g.fillRect(l.x-l.r,l.y-l.r,l.r*2,l.r*2)}

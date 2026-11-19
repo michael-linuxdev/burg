@@ -373,11 +373,13 @@ function openSettings(){
   $('setVib').checked=SET.vibrate;$('setTut').checked=SET.tutorial;
   segBtns.qualseg.forEach((b,i)=>b.setAttribute('aria-pressed',Object.keys(QUALITY)[i]===SET.quality?'true':'false'));
   segBtns.speedseg.forEach((b,i)=>b.setAttribute('aria-pressed',[1,3][i]===SET.speed?'true':'false'));
+  segBtns.fpsseg.forEach((b,i)=>b.setAttribute('aria-pressed',[30,60][i]===SET.fps?'true':'false'));
   $('qualsub').textContent=SET.quality==='niedrig'?'Weniger Partikel und Wetter, einfaches Nachtlicht, geringere Auflösung. Für ältere Handys.':SET.quality==='mittel'?'Weniger Partikel und Wetter, Lichtkegel ohne Leuchten.':'Alle Effekte.';
   $('menu').style.display='none';$('settings').style.display='flex';
 }
 makeSeg('qualseg',Object.values(QUALITY),i=>{SET.quality=Object.keys(QUALITY)[i];saveSettings();terrKey='';resize();openSettings()});
 makeSeg('speedseg',[{n:'1×'},{n:'3×'}],i=>{SET.speed=[1,3][i];saveSettings();openSettings()});
+makeSeg('fpsseg',[{n:'30 (Akku sparen)'},{n:'60 (flüssig)'}],i=>{SET.fps=[30,60][i];saveSettings();openSettings()});
 $('volMusic').oninput=e=>{SET.music=e.target.value/100;AU.setVolume('music',SET.music);saveSettings()};
 $('volSfx').oninput=e=>{SET.sfx=e.target.value/100;AU.setVolume('sfx',SET.sfx);saveSettings()};
 $('volSfx').onchange=()=>AU.play('bau');
@@ -391,7 +393,13 @@ AU.setVolume('music',SET.music);AU.setVolume('sfx',SET.sfx);
 ['pointerdown','keydown'].forEach(ev=>window.addEventListener(ev,()=>AU.unlock(),{capture:true,passive:true}));
 document.addEventListener('visibilitychange',()=>{if(document.hidden)AU.suspend();else AU.resume()});
 
+// Bildrate drosseln: eingestellte Bildrate (30/60), bei Pause 15, bei offenem Menü 5 Bilder pro Sekunde.
+// Nach einer Berührung läuft 1,5 s lang wieder die eingestellte Bildrate (flüssiges Verschieben).
+let lastInput=0;['pointerdown','pointermove','wheel','keydown'].forEach(ev=>window.addEventListener(ev,()=>{lastInput=performance.now()},{capture:true,passive:true}));
+function frameGap(t){const touch=t-lastInput<1500;if(uiPause&&!touch)return 200;if((!speed||!S||S.over||S.won)&&!touch)return 66;return 1000/(SET.fps||60)}
 function loop(t){
+  requestAnimationFrame(loop);
+  if(lastT&&t-lastT<frameGap(t)-4)return;
   now=t/1000;const real=Math.min(.05,(t-lastT)/1000)||0;lastT=t;
   if(typeof edTick==='function')edTick();
   if(S&&!S.over&&!S.won&&!uiPause&&speed>0&&!S.edit){
@@ -399,7 +407,6 @@ function loop(t){
   }
   arrows.forEach(a=>a.t+=real);arrows=arrows.filter(a=>a.t<(a.kind==='stone'?.7:.3));
   draw(uiPause||!speed||!S||S.over||S.won?0:real*speed);if(S){hud();AU.setMood(S.enemies.some(e=>!e.def)||(S.nextRaid!=null&&S.nextRaid<=1&&!S.over)?'war':'calm')}
-  requestAnimationFrame(loop);
 }
 const saved=loadSave();
 if(saved)resume(saved);

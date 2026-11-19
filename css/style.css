@@ -24,7 +24,7 @@ button{font:inherit;color:inherit}
 button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 #stage{position:relative;flex:1;min-height:0;overflow:hidden}
 canvas{position:absolute;inset:0;width:100%;height:100%;touch-action:none;display:block}
-.glass{background:color-mix(in srgb,var(--panel) 88%,transparent);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);border:1px solid var(--line)}
+.glass{background:color-mix(in srgb,var(--panel) 88%,transparent);border:1px solid var(--line)}
 
 #hud{position:absolute;top:8px;left:8px;right:8px;max-width:560px;margin:0 auto;border-radius:14px;padding:6px 10px 7px;z-index:5}
 .r1{display:flex;align-items:center;gap:8px}
