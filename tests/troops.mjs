@@ -19,8 +19,9 @@ try {
     if (n[0] !== 3 || n[1] !== 1) fail(name + ': Ausbilden im Hof ' + JSON.stringify(n)); else ok(name + ': 3 Speerträger und 1 Bogenschütze im Hof ausgebildet');
     await page.locator('#courtWrap [data-close]').click();
     // Einheiten laufen lassen, bis sie vor dem Bergfried stehen
-    await page.evaluate(() => { order(S.units.filter(u => u.type === 'spear'), (KR + 4) * COLS + KC); for (let i = 0; i < 150; i++) updateUnits(.1); });
+    await page.evaluate(() => { order(S.units.filter(u => u.type === 'spear'), (KR - 4) * COLS + KC); for (let i = 0; i < 150; i++) updateUnits(.1); });
     await page.locator('#openTroops').click();
+    await page.waitForTimeout(300); // Werkzeugleiste wird höher, die Karte rückt im nächsten Bild nach
     if (!(await page.locator('#chips .chip').first().isVisible())) fail(name + ': Truppenleiste nicht sichtbar');
     // Rahmen um die Speerträger ziehen (Bildschirmpositionen aus der Darstellung)
     const box = await page.evaluate(() => { const r = cv.getBoundingClientRect(); const ps = S.units.filter(u => u.type === 'spear').map(u => unitXY(u));
