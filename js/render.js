@@ -1,4 +1,9 @@
-// Zinnenwerk – Zeichnen: Gelände, Gebäude, Figuren, Licht, Wetter
+// Zinnenwerk – Zeichnen: Gelände, Gebäude, Figuren, Licht, Wetter. Liest den Spielzustand S nur.
+const $=id=>document.getElementById(id);
+const cv=$('cv'),ctx=cv.getContext('2d');
+// Ansichtszustand (gehört nicht zur Spiellogik)
+let sel=null,speed=1,lastT=0,arrows=[],cell=30,ox=0,oy=0,dpr=1,uiPause=true,now=0;
+let walkers=new Map(),wanderers=[];
 // ---------- Zeichnen ----------
 const PAL={grass:'#7BA04C',stone:'#B9B3A4',stoneL:'#D3CEC1',stoneD:'#8A8475',wood:'#8A5A33',woodD:'#5E3B1F',
   thatch:'#CFA953',thatchD:'#A37F37',roofR:'#A8452F',roofRD:'#7E3122',plaster:'#EFE6CF',
@@ -399,3 +404,30 @@ function nightPass(g,amount){
   for(const l of glows){const gr=g.createRadialGradient(l.x,l.y,0,l.x,l.y,l.r*.8);gr.addColorStop(0,`rgba(255,170,80,${.28*amount})`);gr.addColorStop(1,'rgba(255,170,80,0)');g.fillStyle=gr;g.fillRect(l.x-l.r,l.y-l.r,l.r*2,l.r*2)}
   g.globalCompositeOperation='source-over';
 }
+
+// ---------- Leben im Dorf (rein optisch) ----------
+function updateLife(dt){
+  const active=new Set();
+  S.grid.forEach((t,i)=>{const b=t.b;if(!b||!b.on||b.cut||!B[b.type].prod)return;active.add(b.id);
+    let w=walkers.get(b.id);
+    if(!w||w.gv!==S.gv){w={gv:S.gv,path:pathFrom(i),s:0,st:'work',tm:Math.random()*2.5,type:b.type};walkers.set(b.id,w)}
+    if(!w.path||w.path.length<2)return;
+    const end=w.path.length-1.55;
+    if(w.st==='work'){w.tm-=dt;if(w.tm<=0)w.st='go'}
+    else if(w.st==='go'){w.s+=dt*1.4;if(w.s>=end){w.s=end;w.st='back'}}
+    else{w.s-=dt*1.7;if(w.s<=0){w.s=0;w.st='work';w.tm=2+Math.random()}}
+  });
+  for(const k of [...walkers.keys()])if(!active.has(k))walkers.delete(k);
+  const want=Math.min(Math.max(0,S.idle),6);
+  while(wanderers.length<want)wanderers.push({x:KC+.5,y:KR+1.5,tx:KC+.5,ty:KR+1.5,wait:Math.random()*2});
+  wanderers.length=want;
+  for(const p of wanderers){
+    const dx=p.tx-p.x,dy=p.ty-p.y,d=Math.hypot(dx,dy);
+    if(d<.05){p.wait-=dt;if(p.wait<=0){for(let k=0;k<8;k++){const r=KR+Math.floor(Math.random()*5)-2,c=KC+Math.floor(Math.random()*5)-2;if(inb(r,c)&&reach[r*COLS+c]&&!isWall(T(r,c).b)&&!(r===KR&&c===KC)){p.tx=c+.2+Math.random()*.6;p.ty=r+.2+Math.random()*.6;break}}p.wait=1+Math.random()*3}}
+    else{const sp=Math.min(d,.6*dt);p.x+=dx/d*sp;p.y+=dy/d*sp}
+  }
+}
+function resetView(){arrows=[];sel=null;walkers=new Map();wanderers=[];parts=[];weather=[]}
+H.fx=(tx,ty,kind,n)=>fx(tx,ty,kind,n);
+H.shot=(x1,y1,x2,y2)=>arrows.push({x1,y1,x2,y2,t:0});
+H.side=s=>dispSide(s);

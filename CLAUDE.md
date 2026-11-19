@@ -5,8 +5,9 @@ Zinnenwerk ist ein Burgenbau-Strategiespiel (inspiriert von Stronghold, aber mit
 
 ## Technik
 - Vanilla JavaScript, Canvas 2D, kein Framework, kein Build-Schritt. Alles muss direkt von GitHub Pages laufen.
-- Die drei Skripte in `js/` sind klassische Skripte und teilen sich den globalen Gültigkeitsbereich (Reihenfolge: game, render, ui). Eine Umstellung auf ES-Module ist erlaubt, wenn alles danach getestet funktioniert.
-- Keine externen Laufzeit-Abhängigkeiten außer Google Fonts (die sollen selbst gehostet werden). Sound wird mit der Web Audio API erzeugt oder als kleine, selbst erstellte Dateien im Repo abgelegt.
+- Die Skripte in `js/` sind klassische Skripte und teilen sich den globalen Gültigkeitsbereich (Reihenfolge: data, core, economy, combat, render, ui, pwa). ES-Module wurden bewusst nicht eingeführt: So bleiben die Logikdateien ohne Build in Node (`vm`) ladbar, siehe `tools/sim.mjs`.
+- Spiellogik (`data.js`, `core.js`, `economy.js`, `combat.js`) greift nie auf `document`/`window` zu. Ausgaben laufen über die Rückrufe in `H` (`H.say`, `H.fx`, `H.sfx` …). Regeln und Zahlen stehen in `docs/DESIGN.md` und werden mit jeder Änderung aktualisiert.
+- Keine externen Laufzeit-Abhängigkeiten. Schriften liegen selbst gehostet in `fonts/`. Sound wird mit der Web Audio API erzeugt oder als kleine, selbst erstellte Dateien im Repo abgelegt.
 - Spielstand in `localStorage` (Schlüssel `zinnenwerk-v3`, Kampagnenfortschritt `zinnenwerk-progress`). Bei Formatänderungen eine Migration schreiben, Fortschritt nie verlieren.
 - Nach jeder Änderung an ausgelieferten Dateien `VERSION` in `sw.js` erhöhen und neue Dateien in `SHELL` aufnehmen.
 
@@ -23,7 +24,8 @@ Zinnenwerk ist ein Burgenbau-Strategiespiel (inspiriert von Stronghold, aber mit
 - Touch zuerst: Pinch-Zoom, Ein-Finger-Verschieben, Mauern per Wischen. Tippziele mindestens 40 px.
 
 ## Testen
-- `node --check` auf alle Skripte.
+- `npm run check` (`node --check` auf alle Skripte) und `npm run smoke` (läuft auch in CI).
+- `npm run e2e` erzeugt Screenshots aller Ansichten in Hell und Dunkel.
 - Mit Playwright über einen lokalen HTTP-Server testen: Hochformat 390×844, Querformat 844×390, Desktop 1280×800. Screenshots von Tag, Nacht, Winter, offenen Menüs und einem laufenden Angriff prüfen. Keine Konsolenfehler.
 - Für Balancing eine Headless-Simulation der Spiellogik schreiben (z. B. `tools/sim.mjs`), die Missionen mit einer einfachen Bot-Strategie durchspielt.
 

@@ -23,6 +23,8 @@ function zoomAt(px,py,z){z=Math.max(1,Math.min(3,z));const wx=(px-ox)/cell,wy=(p
 // ---------- Oberfläche ----------
 const tq=[];let tBusy=false;
 function toast(m){if(tq.length&&tq[tq.length-1]===m)return;tq.push(m);if(tq.length>4)tq.shift();if(!tBusy)nextToast()}
+H.say=toast;
+H.vibrate=p=>{try{navigator.vibrate&&navigator.vibrate(p)}catch(e){}};
 function nextToast(){const el=$('toast');if(!tq.length){tBusy=false;el.classList.remove('show');return}tBusy=true;el.textContent=tq.shift();el.classList.add('show');setTimeout(()=>{el.classList.remove('show');setTimeout(nextToast,220)},2400)}
 const GROUPS=[['Wohnen und Glaube',['haus','kapelle','brunnen']],['Nahrung',['obst','farm','muehle','baecker']],['Rohstoffe',['holzf','stein']],['Burg',['mauer','tor','turm','kaserne']],['Werkzeug',['abriss']]];
 function buildCards(){
@@ -172,8 +174,18 @@ function brief(mi){
   const goals=m.goals.length?'<ul class="goals">'+m.goals.map(([t,n])=>'<li>'+GOALTXT[t][0]+' '+n+' '+GOALTXT[t][1]+'</li>').join('')+'</ul>':'';
   $('menu').style.display='none';
   modal((mi<0?'':'Mission '+(mi+1)+': ')+m.n,'<p>'+m.s+'</p>'+goals+'<p class="tip">Alle 6 Tage wechselt die Jahreszeit. Im Winter ruhen Felder und Obstgärten.</p>',
-    [{t:'Los geht’s',p:1,f:()=>{startGame(mi);zoom=1;resize();closeModal();toast(mi<0?'Die ersten Feinde kommen an Tag 8.':'Viel Erfolg!')}},{t:'Zurück',f:openMenu}]);
+    [{t:'Los geht’s',p:1,f:()=>{newGame(mi);closeModal();toast(mi<0?'Die ersten Feinde kommen an Tag 8.':'Viel Erfolg!')}},{t:'Zurück',f:openMenu}]);
 }
+function newGame(mi){startGame(mi);resetView();zoom=1;refreshSel();resize()}
+H.won=()=>{
+  const next=S.mi+1<MISSIONS.length?S.mi+1:null;
+  modal('Mission geschafft','<p>„'+mission().n+'“ ist abgeschlossen. Deine Burg steht nach '+S.day+' Tagen stolzer da als je zuvor.</p>'+(next==null?'<p>Das war die letzte Mission. Im freien Spiel kannst du weiterbauen.</p>':''),
+    next!=null?[{t:'Nächste Mission',p:1,f:()=>brief(next)},{t:'Menü',f:openMenu}]:[{t:'Freies Spiel',p:1,f:()=>brief(-1)},{t:'Menü',f:openMenu}]);
+};
+H.lost=()=>{
+  modal('Die Burg ist gefallen','<p>Deine Burg hielt '+S.day+' Tage stand und wehrte '+S.repelled+(S.repelled===1?' Angriff':' Angriffe')+' ab.</p>',
+    [{t:'Nochmal versuchen',p:1,f:()=>{newGame(S.mi);closeModal()}},{t:'Menü',f:openMenu}]);
+};
 function openMenu(){
   $('modal').style.display='none';uiPause=true;closeSheets();
   const p=getProg(),hasRun=S&&!S.over&&!S.won;
@@ -191,14 +203,14 @@ $('cont').onclick=closeModal;$('free').onclick=()=>brief(-1);$('menuBtn').onclic
 function loop(t){
   now=t/1000;const real=Math.min(.05,(t-lastT)/1000)||0;lastT=t;
   if(S&&!S.over&&!S.won&&!uiPause&&speed>0){
-    for(let i=0;i<speed;i++){S.clock+=real;while(S.clock>=DAY){S.clock-=DAY;dayTick();if(S.won||S.over)break}if(S.won||S.over)break;update(real);if(S.over)break}
+    for(let i=0;i<speed;i++){step(real);if(S.won||S.over)break;updateLife(real)}
   }
   arrows.forEach(a=>a.t+=real);arrows=arrows.filter(a=>a.t<.3);
   draw(uiPause||!speed||!S||S.over||S.won?0:real*speed);if(S)hud();
   requestAnimationFrame(loop);
 }
 const saved=loadSave();
-if(saved){S=saved;S.enemies=S.enemies||[];cacheGv=-1;ensure();assignWorkers()}
+if(saved)resume(saved);
 else startGame(0);
 buildCards();$('buildIc').src=makeIcon('haus');
 new ResizeObserver(resize).observe($('stage'));new ResizeObserver(resize).observe($('hud'));resize();
