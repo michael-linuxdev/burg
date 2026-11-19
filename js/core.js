@@ -33,18 +33,45 @@ function getProg(){try{return JSON.parse(store.get(PROG))||{done:[]}}catch(e){re
 function setProg(p){store.set(PROG,JSON.stringify(p))}
 function newState(mi){
   const m=mi<0?FREE:MISSIONS[mi],seed=mi<0?Math.floor(Math.random()*1e9):m.seed;
-  return{mi,seed,day:1,clock:0,res:{...m.res},pop:m.pop,pp:60,lastDelta:0,tax:2,ration:2,eff:2,prevEff:2,variety:1,archers:0,idle:m.pop,
+  setMapSize(12,20,11,5);
+  return{ver:SAVE_VER,cols:COLS,rows:ROWS,kr:KR,kc:KC,mi,seed,day:1,clock:0,res:{...m.res},pop:m.pop,pp:60,lastDelta:0,tax:2,ration:2,eff:2,prevEff:2,variety:1,archers:0,idle:m.pop,
      nextRaid:m.raid?m.raid.start:null,raids:0,repelled:0,raidSide:null,raidActive:false,fireDays:0,cold:false,
      keepHp:150,keepMax:150,nid:1,gv:0,grid:genMap(seed),enemies:[],over:false,won:false};
 }
 function startGame(mi){
-  S=newState(mi);cds={};cacheGv=-1;
+  S=newState(mi);cds={};cacheGv=-1;undoClear();
   ensure();assignWorkers();save();
 }
 const mission=()=>S.mi<0?FREE:MISSIONS[S.mi];
-function save(){if(S&&!S.over&&!S.won)store.set(SAVE,JSON.stringify(S));else store.del(SAVE)}
-function loadSave(){try{const s=store.get(SAVE);if(s){const o=JSON.parse(s);if(o&&o.grid&&o.grid.length===N&&o.gv!=null)return o}}catch(e){}return null}
-function resume(o){S=o;S.enemies=S.enemies||[];cds={};cacheGv=-1;ensure();assignWorkers()}
+// ---------- Speichern ----------
+// Automatischer Spielstand unter AUTO, drei feste Plätze unter SLOT+n. Jeder Stand trägt S.ver;
+// migrate() hebt ältere Stände auf das aktuelle Format. Der alte Schlüssel SAVE (v3) wird beim
+// ersten Start einmalig in den automatischen Spielstand übernommen und nicht gelöscht.
+const SAVE_VER=2;
+function migrate(o){
+  if(!o||!o.grid||o.gv==null)return null;
+  const v=o.ver||1;
+  if(v<2){o.enemies=o.enemies||[];o.saved=o.saved||Date.now();o.cols=12;o.rows=20;o.kr=11;o.kc=5}
+  if(o.grid.length!==o.cols*o.rows)return null;
+  for(const e of o.enemies)if(e.w==null)e.w=o.raids;
+  o.ver=SAVE_VER;
+  return o;
+}
+function readSave(key){try{const s=store.get(key);if(!s)return null;return migrate(JSON.parse(s))}catch(e){return null}}
+function save(){if(!S)return;if(!S.over&&!S.won){S.ver=SAVE_VER;S.saved=Date.now();store.set(AUTO,JSON.stringify(S))}else store.del(AUTO)}
+function saveSlot(n){if(!S||S.over||S.won)return false;S.ver=SAVE_VER;S.saved=Date.now();store.set(SLOT+n,JSON.stringify(S));return true}
+function loadSave(){
+  let o=readSave(AUTO);
+  if(!o){const old=readSave(SAVE);if(old){o=old;store.set(AUTO,JSON.stringify(o))}}
+  return o;
+}
+// Kurzbeschreibung eines Spielstands für das Menü
+function savePreview(o){
+  if(!o)return null;const m=o.mi<0?FREE:MISSIONS[o.mi];if(!m)return null;
+  const sea=seasonOf(o.day);
+  return{name:(o.mi<0?'':'Mission '+(o.mi+1)+': ')+m.n,day:o.day,season:SEAS[sea][0]+' '+SEAS[sea][1],saved:o.saved||0};
+}
+function resume(o){setMapSize(o.cols,o.rows,o.kr,o.kc);S=o;undoClear();S.enemies=S.enemies||[];cds={};cacheGv=-1;ensure();assignWorkers()}
 
 const T=(r,c)=>S.grid[r*COLS+c];
 const inb=(r,c)=>r>=0&&r<ROWS&&c>=0&&c<COLS;
@@ -111,4 +138,34 @@ function assignWorkers(){
   let free=S.pop-S.archers;
   for(const b of bl){const w=B[b.type].w;b.on=!b.cut&&free>=w;if(b.on)free-=w}
   S.idle=free;
+}
+
+// ---------- Rückgängig ----------
+// Bauaktionen werden gesammelt; eine Wisch-Geste (z. B. eine Mauerlinie) ist ein Schritt.
+// Bis zu UNDO_MAX Schritte, nur für Aktionen von heute oder gestern (sonst ließe sich Produktion „zurückkaufen“).
+const UNDO_MAX=20;
+let undoStack=[],undoGroup=null;
+function undoBegin(){undoGroup=[]}
+function undoEnd(){if(undoGroup&&undoGroup.length)pushUndo(undoGroup);undoGroup=null}
+function pushUndo(acts){undoStack.push({day:S.day,acts});if(undoStack.length>UNDO_MAX)undoStack.shift()}
+function record(rec){if(!rec)return;if(undoGroup)undoGroup.push(rec);else pushUndo([rec])}
+function undoClear(){undoStack=[];undoGroup=null}
+function canUndo(){while(undoStack.length&&S.day-undoStack[undoStack.length-1].day>1)undoStack.shift();return undoStack.length>0}
+function undo(){
+  if(!canUndo())return 0;
+  const step=undoStack.pop();let n=0;
+  for(let i=step.acts.length-1;i>=0;i--){
+    const a=step.acts[i],t=T(a.r,a.c);
+    if(a.kind==='add'){
+      if(!t.b||t.b.id!==a.id||t.b.burn)continue;
+      for(const[x,v]of Object.entries(a.cost))S.res[x]+=v;
+      t.b=null;n++;
+    }else{
+      if(t.b||occupied(a.r,a.c)||!has(a.back))continue;
+      for(const[x,v]of Object.entries(a.back))S.res[x]-=v;
+      t.b=a.b;n++;
+    }
+  }
+  if(n){bump();assignWorkers();H.sfx('klick')}
+  return n;
 }
