@@ -1,4 +1,4 @@
-// Zinnenwerk – Kamera, Gesten, Oberfläche, Menüs, Hauptschleife
+// Burgwacht – Kamera, Gesten, Oberfläche, Menüs, Hauptschleife
 // ---------- Kamera ----------
 let zoom=1,baseCell=30,vw=0,vh=0,padT=0,padB=0,padL=0,padR=0;
 function resize(){

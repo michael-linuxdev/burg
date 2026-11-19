@@ -1,4 +1,4 @@
-// Zinnenwerk – Interaktives Tutorial für Mission 1. Führt Schritt für Schritt durch die ersten Handgriffe.
+// Burgwacht – Interaktives Tutorial für Mission 1. Führt Schritt für Schritt durch die ersten Handgriffe.
 // Abschaltbar (Einstellungen) und jederzeit wiederholbar. Gehört zur Oberfläche.
 const TUT={on:false,i:0,flags:{}};
 // Hilfsschritt „Gebäude k bauen“: zeigt je nach Lage auf „Bauen“, die passende Karte oder das Feld

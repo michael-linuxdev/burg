@@ -1,4 +1,4 @@
-// Zinnenwerk – Spieldaten (reine Daten, kein DOM). Alle Zahlenwerte sind in docs/DESIGN.md dokumentiert.
+// Burgwacht – Spieldaten (reine Daten, kein DOM). Alle Zahlenwerte sind in docs/DESIGN.md dokumentiert.
 // Kartengröße: logisch COLS × ROWS, Bergfried bei (KR, KC). Wird pro Mission über setMapSize() gesetzt.
 let COLS=12,ROWS=20,N=COLS*ROWS,KR=11,KC=5,KI=KR*COLS+KC;
 function setMapSize(cols,rows,kr,kc){COLS=cols;ROWS=rows;N=cols*rows;KR=kr;KC=kc;KI=kr*cols+kc}

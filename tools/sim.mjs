@@ -1,4 +1,4 @@
-// Zinnenwerk – Headless-Simulation zum Abstimmen der Missionen.
+// Burgwacht – Headless-Simulation zum Abstimmen der Missionen.
 // Lädt die reinen Logikdateien (ohne DOM) in einen vm-Kontext und lässt einen einfachen Bot spielen.
 //
 //   node tools/sim.mjs                 alle Missionen, je 20 Durchläufe

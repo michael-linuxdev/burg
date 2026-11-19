@@ -1,4 +1,4 @@
-// Zinnenwerk – Eigene Truppen: Einheiten auf der Karte, Wegfindung, Befehle, Kampf. Kein DOM.
+// Burgwacht – Eigene Truppen: Einheiten auf der Karte, Wegfindung, Befehle, Kampf. Kein DOM.
 //
 // Einheiten stehen auf Bodenfeldern oder oben auf Mauern, Türmen und dem Bergfried („erhöht“).
 // Wegfindung: wie die eigenen Leute (Gras begehbar, Tore passierbar, Mauern nicht). Zusätzlich darf eine

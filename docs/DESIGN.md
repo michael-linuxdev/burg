@@ -1,4 +1,4 @@
-# Zinnenwerk – Spielregeln und Zahlenwerte
+# Burgwacht – Spielregeln und Zahlenwerte
 
 Dieses Dokument beschreibt die Spielmechanik vollständig und unabhängig von der Darstellung, sodass eine spätere Unity-Portierung danach gebaut werden kann. Maßgeblich ist der Code in `js/data.js`, `js/core.js`, `js/economy.js`, `js/combat.js` und `js/units.js` (keine DOM-Zugriffe). Die Darstellung (`render.js`, `ui.js`) liest den Zustand nur und hängt sich über die Rückrufe in `H` ein.
 

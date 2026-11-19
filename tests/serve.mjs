@@ -21,5 +21,5 @@ export function startServer(port = 0) {
 }
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const { url } = await startServer(+process.argv[2] || 8080);
-  console.log('Zinnenwerk läuft auf', url);
+  console.log('Burgwacht läuft auf', url);
 }

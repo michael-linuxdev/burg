@@ -1,4 +1,4 @@
-// Zinnenwerk – Zeichnen: Gelände, Gebäude, Figuren, Licht, Wetter. Liest den Spielzustand S nur.
+// Burgwacht – Zeichnen: Gelände, Gebäude, Figuren, Licht, Wetter. Liest den Spielzustand S nur.
 const $=id=>document.getElementById(id);
 const cv=$('cv'),ctx=cv.getContext('2d');
 // Ansichtszustand (gehört nicht zur Spiellogik)

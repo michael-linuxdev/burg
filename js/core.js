@@ -1,4 +1,4 @@
-// Zinnenwerk – Kern der Spiellogik: Zustand, Karte, Wege, Bauen, Arbeiter. Kein DOM-Zugriff.
+// Burgwacht – Kern der Spiellogik: Zustand, Karte, Wege, Bauen, Arbeiter. Kein DOM-Zugriff.
 // Die Darstellung hängt sich über die Rückrufe in H ein (Meldungen, Effekte, Geräusche, Sieg/Niederlage).
 const H={
   say(){},            // kurze Meldung für den Spieler

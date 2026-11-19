@@ -1,4 +1,4 @@
-// Zinnenwerk – Einstellungen (pro Gerät in localStorage). Gehört zur Oberfläche, nicht zur Spiellogik.
+// Burgwacht – Einstellungen (pro Gerät in localStorage). Gehört zur Oberfläche, nicht zur Spiellogik.
 const SET={music:.5,sfx:.8,quality:'hoch',speed:1,vibrate:true,tutorial:true,tutDone:false};
 (function(){try{const o=JSON.parse(store.get(SETTINGS)||'{}');for(const k in SET)if(o[k]!==undefined)SET[k]=o[k]}catch(e){}})();
 function saveSettings(){store.set(SETTINGS,JSON.stringify(SET))}

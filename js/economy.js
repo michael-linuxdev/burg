@@ -1,4 +1,4 @@
-// Zinnenwerk – Tageslauf: Produktion, Essen, Brennholz, Steuern, Beliebtheit, Bevölkerung, Angriffsplan, Ziele. Kein DOM.
+// Burgwacht – Tageslauf: Produktion, Essen, Brennholz, Steuern, Beliebtheit, Bevölkerung, Angriffsplan, Ziele. Kein DOM.
 function factors(){
   const f=[['Rationen ('+RAT[S.eff].n+')',RAT[S.eff].p]];
   if(S.variety>1)f.push(['Abwechslung beim Essen',2]);

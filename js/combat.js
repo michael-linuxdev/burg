@@ -1,4 +1,4 @@
-// Zinnenwerk – Echtzeit: Angriffswellen, Feindbewegung, Feuer, Wachen im Bergfried. Kein DOM.
+// Burgwacht – Echtzeit: Angriffswellen, Feindbewegung, Feuer, Wachen im Bergfried. Kein DOM.
 // Eigene Truppen: siehe units.js.
 function waveList(k,R){
   const n=Math.max(1,Math.round((1+k*2)*R.scale));

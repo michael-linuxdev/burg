@@ -1,4 +1,4 @@
-// Zinnenwerk – Klang: prozedurale Musik und Geräusche mit der Web Audio API (keine Audiodateien).
+// Burgwacht – Klang: prozedurale Musik und Geräusche mit der Web Audio API (keine Audiodateien).
 // Startet erst nach der ersten Berührung (Browser-Regel). Lautstärken kommen aus den Einstellungen.
 const AU=(()=>{
   let ac=null,master=null,musicBus=null,sfxBus=null,noiseBuf=null,started=false;

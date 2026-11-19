@@ -1,4 +1,4 @@
-// Zinnenwerk – Ereignisse und Markt. Kein DOM.
+// Burgwacht – Ereignisse und Markt. Kein DOM.
 //
 // Ereignisse würfelt dayTick() einmal am Tag (eventTick). Manche wirken sofort (Blitz, Wölfe), manche
 // über mehrere Tage (Seuche, Missernte), manche verlangen eine Entscheidung (Händler, Turnier, Festtag).

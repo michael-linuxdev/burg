@@ -17,7 +17,7 @@
 *,*::before,*::after{box-sizing:border-box}
 html,body{height:100%;margin:0}
 html{background:var(--bg);scroll-padding-top:env(safe-area-inset-top,0px)}
-body{background:var(--bg);color:var(--ink);font-family:"Alegreya Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+body{background:var(--bg);color:var(--ink);font-family:"Fira Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
   font-size:15px;line-height:1.35;display:flex;flex-direction:column;overflow:hidden;
   -webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}
 button{font:inherit;color:inherit}
@@ -71,7 +71,7 @@ canvas{position:absolute;inset:0;width:100%;height:100%;touch-action:none;displa
 @keyframes up{from{transform:translateY(24px);opacity:.5}to{transform:none;opacity:1}}
 .grab{width:40px;height:4px;border-radius:2px;background:var(--line);margin:6px auto 4px}
 .shead{display:flex;align-items:center;justify-content:space-between;position:sticky;top:-4px;background:var(--panel);padding:4px 0;z-index:1}
-.shead h2{font-family:"Pirata One",Georgia,serif;font-weight:400;font-size:28px;margin:0;line-height:1}
+.shead h2{font-family:"Cinzel",Georgia,serif;font-weight:700;font-size:22px;letter-spacing:.5px;margin:0;line-height:1}
 .close{background:none;border:0;color:var(--accent);cursor:pointer;padding:6px 4px;font-weight:500}
 .grp{font-size:13.5px;font-weight:700;color:var(--muted);margin:12px 0 6px}
 .cards{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
@@ -96,13 +96,13 @@ canvas{position:absolute;inset:0;width:100%;height:100%;touch-action:none;displa
 .screen{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:var(--scrim);z-index:20;
   padding:calc(env(safe-area-inset-top,0px) + 16px) 16px calc(env(safe-area-inset-bottom,0px) + 16px)}
 .sheet{background:var(--panel);border-radius:14px;padding:20px;max-width:420px;width:100%;max-height:100%;overflow-y:auto}
-.sheet h2.title{font-family:"Pirata One",Georgia,serif;font-weight:400;font-size:32px;margin:0 0 6px;line-height:1.05}
+.sheet h2.title{font-family:"Cinzel",Georgia,serif;font-weight:700;font-size:25px;letter-spacing:.5px;margin:0 0 6px;line-height:1.05}
 .sheet p{margin:0 0 10px;line-height:1.45}
 .sheet h3{font-size:14px;font-weight:700;margin:16px 0 6px}
 #mlist{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:6px}
 #mlist button{width:100%;text-align:left;background:none;border:1px solid var(--line);border-radius:10px;padding:10px 12px;cursor:pointer;display:flex;gap:10px;align-items:baseline}
 #mlist button:disabled{opacity:.5;cursor:default}
-#mlist .no{font-family:"Pirata One",Georgia,serif;font-size:22px;line-height:1;width:20px;color:var(--muted)}
+#mlist .no{font-family:"Cinzel",Georgia,serif;font-weight:700;font-size:18px;line-height:1;width:20px;color:var(--muted)}
 #mlist .mt{font-weight:700;display:block}
 #mlist .ms{font-size:13px;color:var(--muted)}
 #mlist .st{margin-left:auto;font-size:13px;white-space:nowrap}
@@ -208,7 +208,7 @@ canvas{position:absolute;inset:0;width:100%;height:100%;touch-action:none;displa
   background:conic-gradient(var(--trim) calc(var(--p)*360deg),var(--chipL) 0);box-shadow:0 1px 3px rgba(0,0,0,.25)}
 #season{width:30px;height:30px;border-radius:50%;background:var(--chip);display:grid;place-items:center;font-size:17px;color:var(--hudInk)}
 .dtxt{display:flex;flex-direction:column;line-height:1.05;min-width:0}
-#day{font-family:"Pirata One",Georgia,serif;font-weight:400;font-size:22px;letter-spacing:.3px}
+#day{font-family:"Cinzel",Georgia,serif;font-weight:700;font-size:18px;letter-spacing:.4px}
 .dtxt small{font-size:12.5px;color:var(--hudMut);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #clock{color:inherit;font-size:inherit}
 .speed{border:2px solid var(--trim);border-radius:10px;background:var(--chip)}
@@ -240,7 +240,7 @@ canvas{position:absolute;inset:0;width:100%;height:100%;touch-action:none;displa
 #raid.calm{color:var(--good)}
 @keyframes pulseR{50%{box-shadow:0 0 0 4px color-mix(in srgb,var(--danger) 35%,transparent)}}
 #goal{display:flex;flex-wrap:wrap;align-items:center;gap:4px 10px;margin-top:6px;padding-top:5px;border-top:1px dashed var(--chipL);white-space:normal;overflow:visible;font-size:13px}
-#goal .gl{font-family:"Pirata One",Georgia,serif;font-size:17px;color:var(--trim);line-height:1}
+#goal .gl{font-family:"Cinzel",Georgia,serif;font-weight:700;font-size:13px;letter-spacing:.4px;color:var(--trim);line-height:1}
 #goal .gq{display:inline-flex;align-items:center;gap:4px}
 #goal .gq i{font-style:normal}
 #goal .gb{width:52px;height:7px;border-radius:4px;background:var(--chipL);overflow:hidden;box-shadow:inset 0 1px 2px rgba(0,0,0,.25)}

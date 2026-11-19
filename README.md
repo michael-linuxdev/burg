@@ -1,4 +1,4 @@
-# Zinnenwerk
+# Burgwacht
 
 Ein Burgenbau-Strategiespiel für Handy und Browser: Wirtschaft aufbauen, das Volk bei Laune halten, durch den Winter kommen und die Burg gegen Räuber, Brandstifter und Rammböcke verteidigen.
 
@@ -12,7 +12,7 @@ Läuft als installierbare PWA (offline spielbar). Auf dem Handy im Browser öffn
 |---|---|
 | `index.html` | Grundgerüst der Seite, lädt CSS, Schriften und Skripte |
 | `css/style.css` | Gesamtes Layout inkl. Hell/Dunkel, Hoch- und Querformat |
-| `fonts/` | Selbst gehostete Schriften (Pirata One, Alegreya Sans) mit OFL-Lizenztexten |
+| `fonts/` | Selbst gehostete Schriften (Cinzel, Fira Sans) mit OFL-Lizenztexten |
 | `js/data.js` | Spieldaten: Gebäude, Feinde, Missionen, Steuern, Rationen |
 | `js/core.js` | Spielzustand, Kartengenerator, Wegfindung, Bauen, Arbeiter, Speichern |
 | `js/economy.js` | Tageslauf: Produktion, Essen, Beliebtheit, Bevölkerung, Ziele |
