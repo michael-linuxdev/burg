@@ -21,7 +21,7 @@ t('Kornkammer begrenzt Brot und Äpfel', () => {
 });
 t('Bogenschütze kostet Gold und einen Bogen', () => {
   const g = fresh(); place(g, 'kaserne'); g.run('S.res.gold=100;S.res.bogen=1;S.pop=20;assignWorkers()');
-  eq(g.run('recruit()'), ''); eq(g.run('[S.res.gold,S.res.bogen,S.archers]'), [88, 0, 1]);
+  eq(g.run('recruit()'), ''); eq(g.run('[S.res.gold,S.res.bogen,S.units.length]'), [88, 0, 1]);
   eq(g.run('recruit()'), 'Keine Bögen in der Rüstkammer');
 });
 t('Schmied: Speere oder Schwerter je nach Modus', () => {
@@ -43,7 +43,7 @@ t('Burgausbau: Holzburg → Steinburg → Festung', () => {
 t('Migration: Spielstand Version 2 bekommt neue Rohstoffe und Burgstufe', () => {
   const g = fresh(); const o = g.run('(()=>{const o=JSON.parse(JSON.stringify(S));o.ver=2;delete o.keepLv;delete o.res.eisen;delete o.res.bogen;delete o.spill;return o})()');
   g.ctx.__o = o; const m = g.run('migrate(__o)');
-  eq([m.ver, m.keepLv, m.res.eisen, m.res.bogen, typeof m.spill], [3, 0, 0, 0, 'object']);
+  eq([m.ver, m.keepLv, m.res.eisen, m.res.bogen, typeof m.spill], [4, 0, 0, 0, 'object']);
 });
 t('Überlappende Wellen zählen einzeln', () => {
   const g = fresh(); g.run('S.raidSide="Norden";spawnWave();S.raidSide="Norden";spawnWave()');

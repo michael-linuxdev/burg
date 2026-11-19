@@ -34,7 +34,7 @@ function setProg(p){store.set(PROG,JSON.stringify(p))}
 function newState(mi){
   const m=mi<0?FREE:MISSIONS[mi],seed=mi<0?Math.floor(Math.random()*1e9):m.seed;
   setMapSize(12,20,11,5);
-  return{ver:SAVE_VER,cols:COLS,rows:ROWS,kr:KR,kc:KC,mi,seed,day:1,clock:0,res:{...m.res},pop:m.pop,pp:60,lastDelta:0,tax:2,ration:2,eff:2,prevEff:2,variety:1,archers:0,idle:m.pop,
+  return{ver:SAVE_VER,cols:COLS,rows:ROWS,kr:KR,kc:KC,mi,seed,day:1,clock:0,res:{...m.res},pop:m.pop,pp:60,lastDelta:0,tax:2,ration:2,eff:2,prevEff:2,variety:1,units:[],idle:m.pop,
      nextRaid:m.raid?m.raid.start:null,raids:0,repelled:0,raidSide:null,raidActive:false,fireDays:0,cold:false,
      keepLv:0,keepHp:KEEP_LV[0].hp,keepMax:KEEP_LV[0].hp,spill:{},nid:1,gv:0,grid:genMap(seed),enemies:[],over:false,won:false};
 }
@@ -47,12 +47,13 @@ const mission=()=>S.mi<0?FREE:MISSIONS[S.mi];
 // Automatischer Spielstand unter AUTO, drei feste Plätze unter SLOT+n. Jeder Stand trägt S.ver;
 // migrate() hebt ältere Stände auf das aktuelle Format. Der alte Schlüssel SAVE (v3) wird beim
 // ersten Start einmalig in den automatischen Spielstand übernommen und nicht gelöscht.
-const SAVE_VER=3;
+const SAVE_VER=4;
 function migrate(o){
   if(!o||!o.grid||o.gv==null)return null;
   const v=o.ver||1;
   if(v<2){o.enemies=o.enemies||[];o.saved=o.saved||Date.now();o.cols=12;o.rows=20;o.kr=11;o.kc=5}
   if(v<3){for(const k in BASE)if(o.res[k]==null)o.res[k]=0;o.keepLv=0;o.spill={}}
+  if(v<4){o.units=[];let id=1;for(let k=0;k<(o.archers||0);k++)o.units.push({id:id++,type:'archer',i:o.kr*o.cols+o.kc,x:o.kc+.5,y:o.kr+.5,hp:10,max:10,path:[],dest:null,cd:0,tgt:null,post:o.kr*o.cols+o.kc});delete o.archers}
   if(o.grid.length!==o.cols*o.rows)return null;
   for(const e of o.enemies)if(e.w==null)e.w=o.raids;
   o.ver=SAVE_VER;
@@ -72,7 +73,7 @@ function savePreview(o){
   const sea=seasonOf(o.day);
   return{name:(o.mi<0?'':'Mission '+(o.mi+1)+': ')+m.n,day:o.day,season:SEAS[sea][0]+' '+SEAS[sea][1],saved:o.saved||0};
 }
-function resume(o){setMapSize(o.cols,o.rows,o.kr,o.kc);S=o;undoClear();S.enemies=S.enemies||[];cds={};cacheGv=-1;ensure();assignWorkers()}
+function resume(o){setMapSize(o.cols,o.rows,o.kr,o.kc);S=o;undoClear();for(const u of S.units){u.tgt=null;if(u.id>=uid)uid=u.id+1}S.enemies=S.enemies||[];cds={};cacheGv=-1;ensure();assignWorkers()}
 
 const T=(r,c)=>S.grid[r*COLS+c];
 const inb=(r,c)=>r>=0&&r<ROWS&&c>=0&&c<COLS;
@@ -100,13 +101,21 @@ const DIRS=[[1,0],[-1,0],[0,1],[0,-1]];
 // ---------- Wege & Verbindungen ----------
 // dist: Kosten für Feinde bis zum Bergfried (Dijkstra). Gras kostet 1, Mauern 1 + LP/5, alles andere ist unpassierbar.
 // reach/prev: Erreichbarkeit für eigene Leute (Breitensuche ab Bergfried, Tore passierbar, Mauern nicht).
+// distL: wie dist, aber für Leitermänner – Mauern und Türme kosten nur die Kletterzeit (3), Tore wie gehabt.
+function dijkstra(cost){
+  const d=new Float64Array(N).fill(Infinity),hp=[];d[KI]=0;
+  const push=(k,v)=>{hp.push([k,v]);let i=hp.length-1;while(i>0){const p=(i-1)>>1;if(hp[p][0]<=hp[i][0])break;[hp[p],hp[i]]=[hp[i],hp[p]];i=p}};
+  const pop=()=>{const top=hp[0],last=hp.pop();if(hp.length){hp[0]=last;let i=0;for(;;){const l=2*i+1,r=l+1;let m=i;if(l<hp.length&&hp[l][0]<hp[m][0])m=l;if(r<hp.length&&hp[r][0]<hp[m][0])m=r;if(m===i)break;[hp[m],hp[i]]=[hp[i],hp[m]];i=m}}return top};
+  hp.push([0,KI]);
+  while(hp.length){const[k,u]=pop();if(k>d[u])continue;const ur=u/COLS|0,uc=u%COLS;
+    for(const[dr,dc]of DIRS){const r=ur+dr,c=uc+dc;if(!inb(r,c))continue;const v=r*COLS+c,s2=cost(v);if(k+s2<d[v]){d[v]=k+s2;push(d[v],v)}}}
+  return d;
+}
+let distL=null;
 function ensure(){
   if(cacheGv===S.gv)return;cacheGv=S.gv;
-  dist=new Array(N).fill(Infinity);const done=new Uint8Array(N);dist[KI]=0;
-  const step=i=>{const t=S.grid[i];if(t.t!==GRASS)return Infinity;if(isWall(t.b))return 1+t.b.hp/5;return 1};
-  for(;;){let u=-1,m=Infinity;for(let i=0;i<N;i++)if(!done[i]&&dist[i]<m){m=dist[i];u=i}
-    if(u<0)break;done[u]=1;const ur=u/COLS|0,uc=u%COLS;
-    for(const[dr,dc]of DIRS){const r=ur+dr,c=uc+dc;if(!inb(r,c))continue;const v=r*COLS+c,s=step(v);if(dist[u]+s<dist[v])dist[v]=dist[u]+s}}
+  dist=dijkstra(i=>{const t=S.grid[i];if(t.t!==GRASS)return Infinity;if(isWall(t.b))return 1+t.b.hp/5;return 1});
+  distL=dijkstra(i=>{const t=S.grid[i];if(t.t!==GRASS)return Infinity;if(isWall(t.b))return B[t.b.type].gate?1+t.b.hp/5:3;return 1});
   reach=new Uint8Array(N);prev=new Int32Array(N).fill(-1);reach[KI]=1;const q=[KI];
   const pass=i=>{const t=S.grid[i];return t.t===GRASS&&(!isWall(t.b)||B[t.b.type].gate)};
   for(let h=0;h<q.length;h++){const u=q[h],ur=u/COLS|0,uc=u%COLS;
@@ -148,7 +157,7 @@ function checkCut(){ensure();const n=S.grid.filter(t=>t.b&&t.b.cut).length;if(n&
 function assignWorkers(){
   ensure();
   const bl=S.grid.map(t=>t.b).filter(b=>b&&B[b.type]&&B[b.type].w).sort((a,b)=>a.id-b.id);
-  let free=S.pop-S.archers;
+  let free=S.pop-S.units.length;
   for(const b of bl){const w=B[b.type].w;b.on=!b.cut&&free>=w;if(b.on)free-=w}
   S.idle=free;
 }

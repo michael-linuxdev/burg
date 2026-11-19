@@ -67,7 +67,7 @@ function court(){
   $('seasub').textContent=SEAS[sea][0]+' '+SEAS[sea][1]+', noch '+left+(left===1?' Tag. ':' Tage. ')+
     (sea===3?'Felder und Obstgärten ruhen. Deine Leute verbrennen '+Math.ceil(S.pop/10)+' Holz pro Tag.':sea===2?'Obstgärten tragen doppelt. Danach kommt der Winter.':'Alle Höfe arbeiten normal.');
   const k=count('kaserne')>0;
-  $('armysub').textContent='Bogenschützen: '+S.archers+(S.archers?' (Sold '+Math.ceil(S.archers*SOLD)+' 💰 pro Tag)':'')+'. Zwei Wachen im Bergfried schießen immer mit. Türme fassen je 3 Schützen.';
+  $('armysub').textContent='Truppen: '+S.units.length+(S.units.length?' (Sold '+soldCost()+' 💰 pro Tag)':'')+'. Die Wachen im Bergfried schießen immer mit. Türme fassen je 3 Einheiten.';
   const rb=$('recruit'),why=recruitWhy(),U=UNIT.archer;rb.disabled=!!why;
   rb.textContent=why&&/Kaserne|Leute/.test(why)?why:'Bogenschütze ausbilden ('+U.gold+' 💰 + '+costTxt(U.need)+')';
   if(why&&!/Kaserne|Leute/.test(why))rb.title=why;

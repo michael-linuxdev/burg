@@ -42,8 +42,8 @@ function dayTick(){
   if(S.tax===0&&S.res.gold<Math.ceil(S.pop*0.4)){S.tax=1;H.say('Kein Gold mehr für Geschenke.')}
   S.res.gold=Math.max(0,S.res.gold+Math.round(S.pop*TAX[S.tax].g));
   // Sold für Bogenschützen; reicht das Gold nicht, sinkt die Beliebtheit
-  const sold=Math.ceil(S.archers*SOLD);
-  if(sold){if(S.res.gold>=sold){S.res.gold-=sold;S.unpaid=false}else{if(!S.unpaid)H.say('Der Sold für deine Bogenschützen fehlt! Das Volk murrt.');S.res.gold=0;S.unpaid=true}}else S.unpaid=false;
+  const sold=soldCost();
+  if(sold){if(S.res.gold>=sold){S.res.gold-=sold;S.unpaid=false}else{if(!S.unpaid)H.say('Der Sold für deine Truppen fehlt! Das Volk murrt.');S.res.gold=0;S.unpaid=true}}else S.unpaid=false;
   // Beliebtheit
   const sum=factors().reduce((a,x)=>a+x[1],0);
   const before=S.pp;S.pp=Math.max(0,Math.min(100,S.pp+sum*0.5));S.lastDelta=S.pp-before;
@@ -51,8 +51,8 @@ function dayTick(){
   // Bevölkerung
   const cp=cap();
   if(S.pp>=50&&S.pop<cp)S.pop+=Math.min(cp-S.pop,S.pp>=75?2:1);
-  else if(S.pp<50){const old=S.pop;S.pop=Math.max(S.archers,S.pop-(S.pp<25?2:1));if(S.pop<old&&S.day%3===0)H.say('Unzufriedene Leute verlassen die Burg.')}
-  if(S.pop>cp)S.pop=Math.max(S.archers,cp);
+  else if(S.pp<50){const old=S.pop;S.pop=Math.max(S.units.length,S.pop-(S.pp<25?2:1));if(S.pop<old&&S.day%3===0)H.say('Unzufriedene Leute verlassen die Burg.')}
+  if(S.pop>cp)S.pop=Math.max(S.units.length,cp);
   assignWorkers();
   // Angriffe
   if(S.nextRaid!=null){
