@@ -172,7 +172,7 @@ function modal(title,html,btns){
   btns.forEach(b=>{const el=document.createElement('button');el.className='btn'+(b.p?' primary':'');el.textContent=b.t;el.onclick=b.f;row.appendChild(el)});
   $('modal').style.display='flex';uiPause=true;closeSheets();
 }
-function closeModal(){$('modal').style.display='none';$('menu').style.display='none';uiPause=false;if(S)hud(true)}
+function closeModal(){$('modal').style.display='none';$('menu').style.display='none';uiPause=false;if(S)hud(true);if(typeof tutTick==='function')tutTick()}
 function brief(mi){
   const m=mi<0?FREE:MISSIONS[mi];
   const goals=m.goals.length?'<ul class="goals">'+m.goals.map(([t,n])=>'<li>'+GOALTXT[t][0]+' '+n+' '+GOALTXT[t][1]+'</li>').join('')+'</ul>':'';

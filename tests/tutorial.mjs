@@ -11,7 +11,7 @@ try {
     const { ctx, page, errors } = await openPage(browser, srv.url, viewport);
     await startMission(page, 0);
     const coach = page.locator('#coach');
-    if (!(await coach.isVisible())) { fail(name + ': Tutorial erscheint nicht'); continue; }
+    if (!(await coach.waitFor({ state: 'visible', timeout: 3000 }).then(() => true, () => false))) { fail(name + ': Tutorial erscheint nicht'); continue; }
     const tapTile = async k => { const t = await freeTile(page, k); const p = await tileCenter(page, t[0], t[1]); await page.mouse.click(p.x, p.y); };
     const clickTarget = async () => { await page.locator('.coach-target').first().click(); await page.waitForTimeout(300); };
     for (const k of ['holzf', 'obst', 'haus']) {
