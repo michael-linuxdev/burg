@@ -36,7 +36,7 @@ function newState(mi){
   setMapSize(12,20,11,5);
   return{ver:SAVE_VER,cols:COLS,rows:ROWS,kr:KR,kc:KC,mi,seed,day:1,clock:0,res:{...m.res},pop:m.pop,pp:60,lastDelta:0,tax:2,ration:2,eff:2,prevEff:2,variety:1,archers:0,idle:m.pop,
      nextRaid:m.raid?m.raid.start:null,raids:0,repelled:0,raidSide:null,raidActive:false,fireDays:0,cold:false,
-     keepHp:150,keepMax:150,nid:1,gv:0,grid:genMap(seed),enemies:[],over:false,won:false};
+     keepLv:0,keepHp:KEEP_LV[0].hp,keepMax:KEEP_LV[0].hp,spill:{},nid:1,gv:0,grid:genMap(seed),enemies:[],over:false,won:false};
 }
 function startGame(mi){
   S=newState(mi);cds={};cacheGv=-1;undoClear();
@@ -47,11 +47,12 @@ const mission=()=>S.mi<0?FREE:MISSIONS[S.mi];
 // Automatischer Spielstand unter AUTO, drei feste Plätze unter SLOT+n. Jeder Stand trägt S.ver;
 // migrate() hebt ältere Stände auf das aktuelle Format. Der alte Schlüssel SAVE (v3) wird beim
 // ersten Start einmalig in den automatischen Spielstand übernommen und nicht gelöscht.
-const SAVE_VER=2;
+const SAVE_VER=3;
 function migrate(o){
   if(!o||!o.grid||o.gv==null)return null;
   const v=o.ver||1;
   if(v<2){o.enemies=o.enemies||[];o.saved=o.saved||Date.now();o.cols=12;o.rows=20;o.kr=11;o.kc=5}
+  if(v<3){for(const k in BASE)if(o.res[k]==null)o.res[k]=0;o.keepLv=0;o.spill={}}
   if(o.grid.length!==o.cols*o.rows)return null;
   for(const e of o.enemies)if(e.w==null)e.w=o.raids;
   o.ver=SAVE_VER;
@@ -75,7 +76,19 @@ function resume(o){setMapSize(o.cols,o.rows,o.kr,o.kc);S=o;undoClear();S.enemies
 
 const T=(r,c)=>S.grid[r*COLS+c];
 const inb=(r,c)=>r>=0&&r<ROWS&&c>=0&&c<COLS;
-const cap=()=>12+count('haus')*8;
+const cap=()=>KEEP_LV[S.keepLv].pop+count('haus')*8;
+// Lagerplatz je Rohstoff der Lagerart kind (lager, korn, waffen)
+const storeCap=kind=>KEEP_LV[S.keepLv].store[kind]+STORE_ADD[kind]*S.grid.filter(t=>t.b&&B[t.b.type]&&B[t.b.type].store===kind).length;
+const resCap=k=>STORE[k]?storeCap(STORE[k]):Infinity;
+// Überschüsse über die Lagergrenze verfallen; die Menge wird in S.spill gesammelt (für die Anzeige)
+function clampRes(){
+  const lost={};
+  for(const k in STORE){const c=storeCap(STORE[k]);if(S.res[k]>c){lost[k]=S.res[k]-c;S.res[k]=c}}
+  for(const k in lost)S.spill[k]=(S.spill[k]||0)+lost[k];
+  return lost;
+}
+// Rezept eines Gebäudes (Schmied hat umschaltbare Rezepte)
+function recipe(b){const d=B[b.type];if(d.modes)return d.modes[b.mode||d.mode];return d}
 const count=k=>S.grid.filter(t=>t.b&&t.b.type===k).length;
 const has=cost=>Object.entries(cost).every(([k,v])=>S.res[k]>=v);
 const costTxt=cost=>Object.entries(cost).map(([k,v])=>v+' '+RICON[k]).join(' ')||'–';
@@ -98,7 +111,7 @@ function ensure(){
   const pass=i=>{const t=S.grid[i];return t.t===GRASS&&(!isWall(t.b)||B[t.b.type].gate)};
   for(let h=0;h<q.length;h++){const u=q[h],ur=u/COLS|0,uc=u%COLS;
     for(const[dr,dc]of DIRS){const r=ur+dr,c=uc+dc;if(!inb(r,c))continue;const v=r*COLS+c;if(reach[v]||!pass(v))continue;reach[v]=1;prev[v]=u;q.push(v)}}
-  S.grid.forEach((t,i)=>{if(t.b&&B[t.b.type]&&B[t.b.type].prod)t.b.cut=!reach[i]});
+  S.grid.forEach((t,i)=>{if(t.b&&B[t.b.type]&&(B[t.b.type].prod||B[t.b.type].modes))t.b.cut=!reach[i]});
 }
 function pathFrom(i){if(!reach[i])return null;const p=[i];let k=i,guard=0;while(k!==KI&&guard++<N){k=prev[k];if(k<0)return null;p.push(k)}return p}
 
@@ -121,11 +134,11 @@ function act(k,r,c,quiet){
   if(d.tool){
     const old=t.b,bd=B[old.type],back={};
     for(const[x,v]of Object.entries(bd.cost)){back[x]=Math.floor(v/2);S.res[x]+=back[x]}
-    t.b=null;H.fx(c+.5,r+.7,'dust',10);H.sfx('abriss');bump();assignWorkers();return{kind:'del',r,c,b:old,back};
+    t.b=null;if(bd.store)clampRes();H.fx(c+.5,r+.7,'dust',10);H.sfx('abriss');bump();assignWorkers();return{kind:'del',r,c,b:old,back};
   }
   if(!has(d.cost)){const miss=Object.keys(d.cost).find(x=>S.res[x]<d.cost[x]);if(!quiet||k==='mauer')H.say('Nicht genug '+RNAME[miss]+'.');return null}
   for(const[x,v]of Object.entries(d.cost))S.res[x]-=v;
-  t.b={type:k,id:S.nid++,hp:d.hp||40,max:d.hp||40,on:false,burn:0};
+  t.b={type:k,id:S.nid++,hp:d.hp||40,max:d.hp||40,on:false,burn:0};if(d.modes)t.b.mode=d.mode;
   H.fx(c+.5,r+.85,'dust',8);H.sfx(d.wall?'stein':'bau');bump();assignWorkers();
   if(k==='tor'||k==='mauer')checkCut();
   return{kind:'add',r,c,id:t.b.id,cost:{...d.cost}};
@@ -166,6 +179,16 @@ function undo(){
       t.b=a.b;n++;
     }
   }
-  if(n){bump();assignWorkers();H.sfx('klick')}
+  if(n){bump();assignWorkers();clampRes();H.sfx('klick')}
   return n;
+}
+
+// ---------- Burgausbau ----------
+function upgradeWhy(){const nx=KEEP_LV[S.keepLv+1];if(!nx)return 'Die Burg ist voll ausgebaut.';if(!has(nx.cost))return 'Nicht genug '+RNAME[Object.keys(nx.cost).find(x=>S.res[x]<nx.cost[x])]+'.';return ''}
+function upgradeKeep(){
+  const why=upgradeWhy();if(why)return why;const nx=KEEP_LV[S.keepLv+1];
+  for(const[x,v]of Object.entries(nx.cost))S.res[x]-=v;
+  S.keepLv++;S.keepHp+=nx.hp-S.keepMax;S.keepMax=nx.hp;
+  H.fx(KC+.5,KR+.8,'dust',20);H.sfx('bau');assignWorkers();H.say('Ausgebaut: Deine Burg ist jetzt eine '+nx.n+'.');
+  return '';
 }

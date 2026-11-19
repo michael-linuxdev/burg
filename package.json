@@ -6,12 +6,13 @@
   "scripts": {
     "check": "for f in js/*.js sw.js; do node --check \"$f\" || exit 1; done",
     "serve": "node tests/serve.mjs 8080",
+    "logic": "node tests/logic.mjs",
     "smoke": "node tests/smoke.mjs",
     "tutorial": "node tests/tutorial.mjs",
     "e2e": "node tests/e2e.mjs test-results",
     "sim": "node tools/sim.mjs",
     "balance": "node tools/sim.mjs all 20 --check",
-    "test": "npm run check && npm run balance && npm run smoke && npm run tutorial"
+    "test": "npm run check && npm run logic && npm run balance && npm run smoke && npm run tutorial"
   },
   "devDependencies": {
     "playwright": "1.63.0"

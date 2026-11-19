@@ -25,7 +25,18 @@ Ablauf pro Simulationsschritt (`step(dt)`): Uhr um `dt` erhöhen; jedes Mal, wen
 
 ## 3. Rohstoffe
 
-Holz, Stein, Weizen, Mehl, Brot, Äpfel, Gold. Startwerte (`BASE`): 40 Holz, 15 Äpfel, 60 Gold, sonst 0. Missionen überschreiben einzelne Werte.
+Holz, Stein, Weizen, Mehl, Brot, Äpfel, Gold, Eisen, Häute sowie die Waffen Bögen, Speere, Schwerter und Lederrüstungen. Startwerte (`BASE`): 40 Holz, 15 Äpfel, 60 Gold, sonst 0. Missionen überschreiben einzelne Werte.
+
+### Lager
+Jeder Rohstoff außer Gold gehört zu einer Lagerart (`STORE`). Die Grenze gilt **je Rohstoff**:
+
+| Lagerart | Rohstoffe | Grundlager (Holzburg / Steinburg / Festung) | je Gebäude |
+|---|---|---|---|
+| Lager | Holz, Stein, Eisen, Weizen, Mehl, Häute | 100 / 150 / 220 | +100 je Lager |
+| Kornkammer | Brot, Äpfel | 60 / 90 / 130 | +80 je Kornkammer |
+| Rüstkammer | Bögen, Speere, Schwerter, Lederrüstungen | 6 / 10 / 15 | +20 je Rüstkammer |
+
+Nach der Tagesproduktion (und nach Abriss eines Lagers oder Rückgängig) wird auf die Grenze gekappt (`clampRes`). Die verfallene Menge steht in `S.spill` (für Anzeige und Meldung „Lager voll: … verfallen“) und wird zu Beginn jedes Tages geleert. Erstattungen beim Abriss und Kopfgeld werden erst beim nächsten Kappen begrenzt.
 
 ## 4. Gebäude
 
@@ -43,7 +54,15 @@ Holz, Stein, Weizen, Mehl, Brot, Äpfel, Gold. Startwerte (`BASE`): 40 Holz, 15 
 | `mauer` | Mauer | 1 Stein | – | 30 LP, blockiert alle |
 | `tor` | Tor | 4 Holz, 8 Stein | – | 150 LP, eigene Leute passieren |
 | `turm` | Turm | 10 Stein | – | 90 LP, bis 3 Bogenschützen, Reichweite 4,6 |
-| `kaserne` | Kaserne | 10 Holz, 6 Stein | – | erlaubt das Ausbilden von Bogenschützen |
+| `kaserne` | Kaserne | 10 Holz, 6 Stein | – | erlaubt das Ausbilden von Truppen |
+| `lager` | Lager | 12 Holz | – | +100 Platz je Lager-Rohstoff |
+| `korn` | Kornkammer | 10 Holz, 4 Stein | – | +80 Platz für Brot und Äpfel |
+| `ruest` | Rüstkammer | 8 Holz, 12 Stein | – | +20 Platz je Waffenart |
+| `mine` | Eisenmine | 15 Holz, 5 Stein | 2 | +2 Eisen/Tag; Fels im Umkreis 1 nötig |
+| `weide` | Viehweide | 8 Holz | 1 | +2 Häute/Tag, im Winter 1 |
+| `gerber` | Gerberei | 12 Holz | 1 | 2 Häute → 1 Lederrüstung |
+| `bogner` | Bogenmacher | 12 Holz | 1 | 2 Holz → 1 Bogen |
+| `schmied` | Schmied | 10 Holz, 10 Stein | 1 | Modus Speer: 1 Eisen + 1 Holz → 1 Speer; Modus Schwert: 2 Eisen → 1 Schwert (antippen schaltet um) |
 | `abriss` | Abreißen | – | – | Werkzeug: entfernt Gebäude, erstattet `floor(Kosten/2)` |
 
 Gebäude ohne Mauer-Eigenschaft haben 40 LP (nur für Feuer relevant). Bauregeln: Feld ist Gras, frei, kein Feind steht darauf oder läuft gerade hinein, Nähe-Bedingung erfüllt, Kosten vorhanden.
@@ -58,13 +77,13 @@ Produktionsgebäude arbeiten nur, wenn ein Weg für eigene Leute zum Bergfried e
 
 Reihenfolge:
 1. Tag erhöhen, Jahreszeit bestimmen, Arbeiter verteilen.
-2. **Produktion** in drei Durchgängen: erst Gebäude ohne Verbrauch, dann Mühlen, dann Bäckereien (so wird frischer Weizen am selben Tag gemahlen). Ein Gebäude mit Verbrauch arbeitet nur, wenn der volle Verbrauch vorrätig ist (sonst „wartet auf Rohstoffe“).
+2. **Produktion** in drei Stufen (`tier`): 0 = Gebäude ohne Verbrauch, 1 = Mühle, 2 = Bäckerei und Werkstätten (Gerberei, Bogenmacher, Schmied). So wird frisch Geerntetes am selben Tag weiterverarbeitet. Faktor nach Jahreszeit (`prodMult`): Obstgarten im Herbst ×2, Viehweide im Winter ×0,5 (gerundet), Obst und Weizen im Winter 0. Danach Lagergrenzen anwenden. Ein Gebäude mit Verbrauch arbeitet nur, wenn der volle Verbrauch vorrätig ist (sonst „wartet auf Rohstoffe“).
 3. **Essen**: Nahrung = Brot + Äpfel. Bedarf = `ceil(Einwohner · r)` mit `r` aus der Rationsstufe. Reicht die Nahrung nicht, sinkt die effektive Ration stufenweise. Verbraucht wird gleichmäßig über die vorhandenen Sorten (kleinster Vorrat zuerst). Abwechslung = Anzahl Sorten mit Vorrat > 0.
 4. **Brennholz** im Winter: `ceil(Einwohner / 10)` Holz pro Tag, sonst „Kälte“.
 5. **Steuern**: Gold += `round(Einwohner · g)`; Gold fällt nie unter 0. „Geschenk“ schaltet automatisch auf „Keine“, wenn das Gold nicht mehr für einen Tag reicht.
    **Sold**: danach `ceil(Bogenschützen · 1)` Gold (`SOLD`). Reicht das Gold nicht, wird es auf 0 gesetzt und „Sold nicht bezahlt“ (−3 Beliebtheit) gilt bis zum nächsten bezahlten Tag.
 6. **Beliebtheit** (0–100): `pp += 0,5 · Σ Faktoren`.
-7. **Bevölkerung**: bei pp ≥ 50 Zuzug +1 (bei pp ≥ 75 +2) bis zur Kapazität; bei pp < 50 Wegzug −1 (bei pp < 25 −2), nie unter die Zahl der Bogenschützen. Kapazität = `12 + 8 · Hütten`.
+7. **Bevölkerung**: bei pp ≥ 50 Zuzug +1 (bei pp ≥ 75 +2) bis zur Kapazität; bei pp < 50 Wegzug −1 (bei pp < 25 −2), nie unter die Zahl der Bogenschützen. Kapazität = `Grundplätze der Burgstufe + 8 · Hütten` (12 / 20 / 28).
 8. **Angriffsplan** (siehe 7.) und Siegprüfung, dann automatisch speichern.
 
 ### Rationen und Steuern
@@ -116,9 +135,19 @@ Missionsparameter `raid = {start, every, fire, ram, scale}`:
 ### Wegfindung der Feinde
 Dijkstra vom Bergfried aus über Gras. Kosten: freies Gras 1, Mauerfeld `1 + LP/5`, sonst unpassierbar (Gebäude ohne Mauer-Eigenschaft sind begehbar). Ein Feind geht stets auf das Nachbarfeld mit den geringsten Restkosten. Ist es eine Mauer/ein Tor/ein Turm, greift er es an (1 Schlag/s) bis es fällt; ist es der Bergfried, greift er diesen an. Die Kostenkarte wird bei jeder Gebäudeänderung neu berechnet, daher suchen Feinde automatisch die schwächste Stelle.
 
+### Burgstufen (`KEEP_LV`)
+
+| Stufe | LP | Grundplätze | Wachen | Ausbaukosten |
+|---|---|---|---|---|
+| Holzburg | 150 | 12 | 2 | – (Start) |
+| Steinburg | 300 | 20 | 3 | 30 Holz, 60 Stein, 80 Gold |
+| Festung | 500 | 28 | 5 | 120 Stein, 30 Eisen, 180 Gold |
+
+Beim Ausbau steigen die aktuellen LP um die Differenz der Maximalwerte (Schaden bleibt erhalten). Ausbau im Hof-Menü.
+
 ### Verteidigung
-- Bergfried: 150 LP. Fällt er, ist das Spiel verloren. Zwei Wachen schießen immer (Reichweite 3,5).
-- Bogenschützen: 12 Gold (`ARCHER_GOLD`) plus 1 Gold Sold pro Tag, brauchen eine Kaserne und eine freie Person. Die ersten 3 stehen im Bergfried, dann je 3 pro Turm (Reichweite 4,6), der Rest im Bergfried.
+- Bergfried: LP nach Burgstufe. Fällt er, ist das Spiel verloren. Die Wachen der Burgstufe schießen immer (Reichweite 3,5).
+- Bogenschützen: 12 Gold (`ARCHER_GOLD`) und 1 Bogen (`UNIT.archer`), dazu 1 Gold Sold pro Tag, brauchen eine Kaserne und eine freie Person. Die ersten 3 stehen im Bergfried, dann je 3 pro Turm (Reichweite 4,6), der Rest im Bergfried.
 - Schussrate: 1 Pfeil pro Schütze und Sekunde, Ziel ist der nächste Feind in Reichweite, Schaden `3 · Rüstung`.
 
 ## 8. Ziele und Missionen
@@ -129,16 +158,16 @@ Zieltypen: `pop` (Einwohner ≥ n), `brot` (Brot auf Vorrat ≥ n), `raids` (abg
 |---|---|---|---|---|---|---|
 | 1 | Ein neuer Anfang | 1201 | Basis | 10 | 24 Einwohner | keine |
 | 2 | Brot für alle | 3307 | 60 Holz, 20 Äpfel | 14 | 40 Brot | ab Tag 10, alle 9, scale 0,6 |
-| 3 | Steinerne Wacht | 4411 | 50 Holz, 20 Stein, 20 Äpfel, 80 Gold | 14 | 3 Wellen | ab 7, alle 6 |
-| 4 | Flammen im Tal | 5519 | 60 Holz, 20 Stein, 20 Äpfel, 100 Gold | 16 | 4 Wellen, 50 Beliebtheit | ab 7, alle 6, Brandstifter ab Welle 1 |
-| 5 | Die Belagerung | 6623 | 80 Holz, 40 Stein, 10 Brot, 20 Äpfel, 150 Gold | 18 | 5 Wellen | ab 8, alle 5, Brandstifter und Rammböcke ab Welle 2, scale 1,4 |
-| – | Freies Spiel | zufällig | Basis + 5 Brot | 10 | – | ab 8, alle 7, Brand ab 3, Ramm ab 5 |
+| 3 | Steinerne Wacht | 4411 | 50 Holz, 20 Stein, 20 Äpfel, 80 Gold, 4 Bögen | 14 | 3 Wellen | ab 7, alle 6 |
+| 4 | Flammen im Tal | 5519 | 60 Holz, 20 Stein, 20 Äpfel, 100 Gold, 4 Bögen | 16 | 4 Wellen, 50 Beliebtheit | ab 7, alle 6, Brandstifter ab Welle 1 |
+| 5 | Die Belagerung | 6623 | 80 Holz, 40 Stein, 10 Brot, 20 Äpfel, 150 Gold, 6 Bögen | 18 | 5 Wellen | ab 8, alle 5, Brandstifter und Rammböcke ab Welle 2, scale 1,4 |
+| – | Freies Spiel | zufällig | Basis + 5 Brot, 3 Bögen | 10 | – | ab 8, alle 7, Brand ab 3, Ramm ab 5 |
 
 ## 9. Speichern
 
 - Automatischer Spielstand: `localStorage['zinnenwerk-auto']`, nach jedem Tag, jeder Welle und beim Laden.
 - Drei feste Plätze: `zinnenwerk-slot-1` … `-3`, im Menü mit Vorschau (Mission, Tag, Jahreszeit, Zeitpunkt).
-- Jeder Stand trägt `ver` (aktuell 2) sowie `cols`, `rows`, `kr`, `kc`. `migrate()` hebt ältere Stände an: Version 1 (Schlüssel `zinnenwerk-v3`) bekommt 12 × 20 / Bergfried (11, 5), Feinde ohne Wellennummer werden der letzten Welle zugeordnet. Ein alter v3-Stand wird beim ersten Start in den automatischen Spielstand übernommen; der alte Schlüssel bleibt unangetastet.
+- Jeder Stand trägt `ver` (aktuell 3) sowie `cols`, `rows`, `kr`, `kc`. `migrate()` hebt ältere Stände an: Version 1 (Schlüssel `zinnenwerk-v3`) bekommt 12 × 20 / Bergfried (11, 5), Feinde ohne Wellennummer werden der letzten Welle zugeordnet. Version 2 → 3: fehlende Rohstoffe (Eisen, Häute, Waffen) = 0, Burgstufe Holzburg, leeres `spill`. Ein alter v3-Stand wird beim ersten Start in den automatischen Spielstand übernommen; der alte Schlüssel bleibt unangetastet.
 - Kampagnenfortschritt: `localStorage['zinnenwerk-progress'] = {done: [Missionsindizes]}`. Wird nie gelöscht.
 - Einstellungen: `localStorage['zinnenwerk-settings']` (Lautstärken, Grafikstufe, Starttempo, Vibration, Tutorial).
 - Mission n ist spielbar, wenn n = 0 oder Mission n − 1 geschafft ist.
@@ -166,7 +195,9 @@ Die Darstellung darf den Zustand nur über die Logik-Funktionen ändern (`act`, 
 
 ## 11. Balancing
 
-Werkzeug: `node tools/sim.mjs [mission|all] [läufe] [--log] [--check]`. Lädt die Logikdateien headless und lässt einen einfachen Bot spielen (feste Prioritätenliste: Holzfäller, Obst, Hütten nach Bedarf, Steinbruch, Brotkette, Mauerring mit Radius 3 um den Bergfried mit Tor im Süden und Türmen an Ecken und Seitenmitten, Kaserne, Brunnen bei Brandstiftern, Schützen bis 3 + 3 je Turm mit 15 Gold Reserve; Steuer runter unter 52 Beliebtheit, rauf über 68). `--check` prüft die Zielbereiche und läuft in CI.
+Zusätzlich prüft `tests/logic.mjs` einzelne Regeln headless (Lager, Waffenkette, Burgausbau, Truppenkosten, Migration, Wellenzählung).
+
+Werkzeug: `node tools/sim.mjs [mission|all] [läufe] [--log] [--check]`. Lädt die Logikdateien headless und lässt einen einfachen Bot spielen (feste Prioritätenliste: Holzfäller, Obst, Hütten nach Bedarf, Steinbruch, Brotkette, Mauerring mit Radius 3 um den Bergfried mit Tor im Süden und Türmen an Ecken und Seitenmitten, Kaserne, Brunnen bei Brandstiftern, Schützen bis 3 + 3 je Turm mit 15 Gold Reserve; Steuer runter unter 52 Beliebtheit, rauf über 68; ab Etappe 2 außerdem Bogenmacher, Lager/Kornkammer/Rüstkammer bei 85 % Füllstand und Burgausbau, sobald der Ring steht). `--check` prüft die Zielbereiche und läuft in CI.
 
 Zielwerte: Mission 1–3 ≥ 90 % Siege, Mission 4 ≥ 80 %, Mission 5 zwischen 50 und 90 %. Gold soll im späteren Spiel knapp bleiben.
 
@@ -185,3 +216,15 @@ Ergebnis nach Etappe 1 (30 Läufe je Mission, verschiedene Zufallsfolgen für An
 - **Steuern** leicht gesenkt (0,5 / 0,8 / 1,2 statt 0,6 / 1,0 / 1,5) und **Sold** 1 Gold pro Schütze und Tag: Vorher lagen am Ende von Mission 5 über 900 Gold ungenutzt herum. Jetzt sind es rund 270, in Mission 3 ist Gold richtig knapp.
 - **Kopfgeld** gesenkt (2 statt 3, Rammbock 6 statt 8), damit Angriffe kein Goldesel sind.
 - **Mission 5** stärker (scale 1,4 statt 1,2): Mit funktionierender Wellenzählung gewann der Bot sonst 95 %; jetzt etwa drei von vier Partien, mit deutlich angeschlagenem Bergfried.
+
+Ergebnis nach Etappe 2 (Lager, Waffenkette, Burgstufen; 20 Läufe):
+
+| Mission | Siege | Ø Tage | Ø Gold am Ende | min. Bergfried-LP |
+|---|---|---|---|---|
+| 1 | 100 % | 15 | 125 | 150 |
+| 2 | 100 % | 11 | 141 | 150 |
+| 3 | 100 % | 23 | 34 | 150 |
+| 4 | 100 % | 30 | 15 | 146 |
+| 5 | 70 % | 38 | 352 | 67 |
+
+Da Bogenschützen jetzt Bögen brauchen, bekommen Mission 3–5 einige Bögen zum Start (4/4/6), damit die erste Welle nicht an der neuen Werkstatt scheitert. Gold ist in Mission 3 und 4 knapp; in Mission 5 fließt ein Teil in den Burgausbau.

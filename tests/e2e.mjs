@@ -18,7 +18,8 @@ for (const [name, viewport] of VIEWS) {
     await shot('menue');
     await startMission(page, 2);
     await page.evaluate(() => { S.res.holz = 200; S.res.stein = 200; S.res.gold = 200; });
-    for (const k of ['holzf', 'obst', 'haus', 'farm', 'kaserne', 'brunnen']) await buildViaUi(page, k).catch(e => console.warn(e.message));
+    await page.evaluate(() => { S.res.eisen = 50; S.keepLv = 1; });
+    for (const k of ['holzf', 'obst', 'haus', 'farm', 'kaserne', 'brunnen', 'lager', 'korn', 'bogner', 'schmied', 'weide', 'gerber', 'ruest', 'mine']) await buildViaUi(page, k).catch(e => console.warn(e.message));
     if (await page.locator('#tDone').isVisible()) await page.locator('#tDone').click();
     // Mauerring per Code (Wischen ist schwer automatisch zu treffen)
     await page.evaluate(() => { for (let r = KR - 3; r <= KR + 3; r++) for (let c = KC - 3; c <= KC + 3; c++) if (Math.max(Math.abs(r - KR), Math.abs(c - KC)) === 3) { const k = (r === KR + 3 && c === KC) ? 'tor' : (Math.abs(r - KR) === 3 && Math.abs(c - KC) === 3) ? 'turm' : 'mauer'; act(k, r, c, true); } S.archers = 4; assignWorkers(); });
@@ -26,6 +27,8 @@ for (const [name, viewport] of VIEWS) {
     await page.locator('#openBuild').click(); await page.waitForTimeout(300); await shot('baumenue'); await page.locator('#buildWrap [data-close]').click();
     await page.locator('#openCourt').click(); await page.waitForTimeout(300); await shot('hof'); await page.locator('#courtWrap [data-close]').click();
     await page.evaluate(() => { S.day = 4; S.clock = 3.2; }); await page.waitForTimeout(400); await shot('nacht');
+    await page.evaluate(() => { S.keepLv = 2; S.keepMax = 500; S.keepHp = 500; zoomAt(innerWidth / 2, innerHeight / 2, 1); }); await page.waitForTimeout(300); await shot('festung');
+    await page.evaluate(() => { S.keepLv = 0; }); await page.waitForTimeout(300); await shot('holzburg-nacht'); await page.evaluate(() => { S.keepLv = 1; });
     await page.evaluate(() => { S.day = 20; S.clock = 1; }); await page.waitForTimeout(600); await shot('winter');
     await page.evaluate(() => { S.day = 13; S.clock = 1; S.raidSide = 'Norden'; spawnWave(); }); await page.waitForTimeout(4500); await shot('angriff');
     // Bildrate während des Angriffs grob messen (headless, nur als Vergleich zwischen den Grafikstufen)

@@ -9,16 +9,22 @@ function factors(){
   if(S.unpaid)f.push(['Sold nicht bezahlt',-3]);
   return f;
 }
+// Jahreszeit-Faktor der Produktion: Herbst Obst ×2, Winter Viehweide ×0,5 (Felder und Obst ruhen ganz)
+function prodMult(type,sea){if(type==='obst'&&sea===2)return 2;if(type==='weide'&&sea===3)return .5;return 1}
 function dayTick(){
   const sBefore=seasonOf(S.day);S.day++;const sea=seasonOf(S.day);
   assignWorkers();
+  // Produktion in Stufen (tier): erst Rohstoffe, dann Mühle (1), dann Bäckerei und Werkstätten (2).
+  // So wird frisch Geerntetes noch am selben Tag weiterverarbeitet.
   const bl=S.grid.map(t=>t.b).filter(b=>b&&b.on&&!b.cut);
-  const pass=fn=>bl.filter(fn).forEach(b=>{const d=B[b.type];
+  const pass=tier=>bl.filter(b=>(B[b.type].tier||0)===tier).forEach(b=>{const rc=recipe(b);
     if(sea===3&&(b.type==='obst'||b.type==='farm')){b.winter=1;return}b.winter=0;
-    if(d.use&&!has(d.use)){b.starved=1;return}b.starved=0;if(d.use)for(const[k,v]of Object.entries(d.use))S.res[k]-=v;
-    const mult=sea===2&&b.type==='obst'?2:1;for(const[k,v]of Object.entries(d.prod))S.res[k]+=v*mult});
+    if(rc.use&&!has(rc.use)){b.starved=1;return}b.starved=0;if(rc.use)for(const[k,v]of Object.entries(rc.use))S.res[k]-=v;
+    for(const[k,v]of Object.entries(rc.prod))S.res[k]+=Math.round(v*prodMult(b.type,sea))});
   S.grid.forEach(t=>{if(t.b&&(t.b.type==='obst'||t.b.type==='farm'))t.b.winter=sea===3?1:0});
-  pass(b=>!B[b.type].use);pass(b=>b.type==='muehle');pass(b=>b.type==='baecker');
+  S.spill={};pass(0);pass(1);pass(2);
+  const lost=clampRes(),lk=Object.keys(lost);
+  if(lk.length)H.say('Lager voll: '+lk.map(k=>lost[k]+' '+RNAME[k]).join(', ')+' verfallen. Baue '+[...new Set(lk.map(k=>STORE_NAME[STORE[k]]))].map(n=>n==='Kornkammer'?'eine Kornkammer':n==='Rüstkammer'?'eine Rüstkammer':'ein Lager').join(' oder ')+'.');
   // Essen
   const food=S.res.brot+S.res.aepfel;let eff=S.ration;
   while(eff>0&&food<Math.ceil(S.pop*RAT[eff].r))eff--;
