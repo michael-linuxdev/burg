@@ -9,8 +9,8 @@ Dieses Dokument beschreibt die Spielmechanik vollständig und unabhängig von de
 | Ein Spieltag | 4 s Echtzeit bei Tempo 1× (`DAY`) |
 | Tempo | 0 (Pause), 1×, 3× – bei 3× wird der Simulationsschritt dreimal pro Bild ausgeführt |
 | Simulationsschritt | Bildzeit, höchstens 0,05 s |
-| Jahreszeit | 6 Tage (`SLEN`), Reihenfolge Frühling → Sommer → Herbst → Winter |
-| Jahreszeit von Tag d | `floor((d − 1) / 6) mod 4` (0 Frühling … 3 Winter) |
+| Jahreszeit | 10 Tage (`SLEN`, bis Etappe 4: 6), Reihenfolge Frühling → Sommer → Herbst → Winter |
+| Jahreszeit von Tag d | `floor((d − 1) / SLEN) mod 4` (0 Frühling … 3 Winter) |
 | Tag-Nacht-Zyklus | 6 Tage (`CYC`), rein optisch |
 
 Ablauf pro Simulationsschritt (`step(dt)`): Uhr um `dt` erhöhen; jedes Mal, wenn sie `DAY` überschreitet, `dayTick()` ausführen; danach `update(dt)` (Echtzeit: Feinde, Feuer, Wachen, Truppen).
@@ -248,7 +248,7 @@ Zieltypen: `pop` (Einwohner ≥ n), `brot` (Brot auf Vorrat ≥ n), `raids` (abg
 | 2 | Brot für alle | 3307 | 60 Holz, 20 Äpfel | 14 | 40 Brot | ab Tag 10, alle 9, scale 0,6 |
 | 3 | Steinerne Wacht | 4411 | 50 Holz, 20 Stein, 20 Äpfel, 80 Gold, 4 Bögen | 14 | 3 Wellen | ab 7, alle 6 |
 | 4 | Flammen im Tal | 5519 | 60 Holz, 20 Stein, 20 Äpfel, 100 Gold, 4 Bögen | 16 | 4 Wellen, 50 Beliebtheit | ab 7, alle 6, Brandstifter ab Welle 1, Leitermänner ab Welle 3 |
-| 5 | Die Belagerung | 6623 | 80 Holz, 40 Stein, 10 Brot, 20 Äpfel, 150 Gold, 6 Bögen, 4 Speere | 18 | 5 Wellen | ab 8, alle 5, Brandstifter und Rammböcke ab Welle 2, feindliche Bogenschützen ab Welle 3, scale 1,4 |
+| 5 | Die Belagerung | 6623 | 80 Holz, 40 Stein, 30 Brot, 30 Äpfel, 170 Gold, 6 Bögen, 4 Speere | 18 | 5 Wellen | ab 8, alle 5, Brandstifter und Rammböcke ab Welle 2, feindliche Bogenschützen ab Welle 3, scale 1,4 |
 | – | Freies Spiel | zufällig | Basis + 5 Brot, 3 Bögen | 10 | – | ab 8, alle 7, Brand ab 3, Leiter ab 4, Ramm ab 5, Bogen ab 6 |
 
 ## 9. Speichern
@@ -281,6 +281,8 @@ Die Logik ruft nur diese Rückrufe auf (`H` in `core.js`):
 Geräuschnamen für `sfx`: `bau`, `stein` (Mauerteil gesetzt), `abriss`, `feuer`, `treffer`, `ramme`, `einsturz`, `glocke` (Angriff), `sieg`, `niederlage`, `klick`. Die Darstellung ergänzt `pfeil`, `holz` und `steinbruch`.
 
 Die Darstellung darf den Zustand nur über die Logik-Funktionen ändern (`act`, `startGame`, Hof-Einstellungen in `S.tax`/`S.ration`, Ausbilden, Befehle `order`/`orderAttack`, `trade`, `resolveEvent`).
+
+Nacht: Abdunklung höchstens 48 % (einfache Grafikstufe 40 %), Lichtquellen schneiden Lichtkegel heraus. Mauern verbinden sich optisch nicht mit dem Bergfried; der Bergfried wird nach den übrigen Gebäuden seiner Reihe gezeichnet.
 
 Das HUD (Statusleiste) ist reine Darstellung: Tagesmedaille mit Fortschrittsring, Ressourcen-Plaketten (gold umrandet ab 90 % Lagerfüllung, rot bei Verfall), Beliebtheitsleiste mit 50er-Marke, Angriffs-Plakette, „Auftrag“ mit einer Fortschrittsleiste je Ziel und ein Berater, der den aktuellen Hinweis in einer Sprechblase gibt. Meldungen erscheinen als Banner; Farbe nach Art (Gefahr rot, Erfolg grün).
 
@@ -343,10 +345,11 @@ Ergebnis nach Etappe 4 (Welt, Ereignisse, Markt; 20 Läufe, Mission 5 zusätzlic
 | 1 | 100 % | 15 | 125 | 150 |
 | 2 | 100 % | 11 | 140 | 150 |
 | 3 | 100 % | 23 | 32 | 150 |
-| 4 | 100 % | 29 | 197 | 146 |
-| 5 | 60 % (80 Läufe: 57 %) | 39 | 130 | 59 |
+| 4 | 90 % | 30 | 219 | 131 |
+| 5 | 75 % (80 Läufe: 66 %) | 39 | 170 | 60 |
 
 Änderungen und warum:
 - **Ereignisse** kosteten Mission 5 rund 8 Prozentpunkte (Seuche, Wölfe). Deshalb seltener (12 % statt 16 %, Abklingzeit 5 Tage) und Mission 5 startet mit 170 statt 150 Gold. Der Bot baut bei einer Seuche eine Apotheke und richtet Feste aus, wenn er mehr als 110 Gold hat und die Beliebtheit unter 62 liegt.
+- **Jahreszeiten 10 statt 6 Tage** (Rückmeldung: Wechsel zu schnell). Der Winter fällt in Mission 5 damit genau in die späten, schweren Angriffe (Bot 35–48 %). Ausgleich: Mission 5 startet mit 30 Brot und 30 Äpfeln (vorher 10 und 20).
 - **Eisenvorkommen** auf den Kampagnenkarten liegt am Westfelsen: An anderen Stellen verdrängte es Bäume und Bauplätze und senkte Mission 5 um rund 10 Prozentpunkte.
 - Freies Spiel auf großen Karten (Bot, 60 Tage, je 4 Karten Mittel/Groß): keine Niederlage, 5–6 abgewehrte Angriffe, 60 Tage in unter 1 s Rechenzeit.

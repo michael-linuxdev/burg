@@ -480,13 +480,16 @@ function draw(dt){
   for(const e of S.enemies)if(e.wait<=0)put((enemyXY(e).gy-oy)/C+(enemyLift(e)>0?.01:0),()=>drawEnemy(g,e,C));
   layoutUnits();
   for(const u of S.units){const q=unitXY(u),on=picked.has(u.id),f=(ufc.get(u.id)||{f:1}).f;put((q.gy-oy)/C+(unitLift(u)>0?.01:0),()=>drawUnit(g,u,C,q.X,q.Y,on,f))}
-  const nbAt=(r,c)=>(dsr,dsc)=>{const r2=r+(TRANS?dsc:dsr),c2=c+(TRANS?dsr:dsc);if(!inb(r2,c2))return false;const b=T(r2,c2).b;return !!(b&&(isWall(b)||b.type==='keep'))};
+  const nbAt=(r,c)=>(dsr,dsc)=>{const r2=r+(TRANS?dsc:dsr),c2=c+(TRANS?dsr:dsc);if(!inb(r2,c2))return false;const b=T(r2,c2).b;return !!(b&&isWall(b))};// Mauern verbinden sich nicht mit dem Bergfried
   // Nur sichtbare Reihen und Spalten zeichnen (mit Rand für hohe Gebäude und den Bergfried)
   const sc0=Math.max(0,Math.floor(-ox/C)-1),sc1=Math.min(SCn-1,Math.ceil((vw-ox)/C)+1),sr0=Math.max(0,Math.floor(-oy/C)-1),sr1=Math.min(SRn-1,Math.ceil((vh-oy)/C)+2);
+  let keepAt=null;
   for(let sr=sr0;sr<=sr1;sr++){
     for(let sc=sc0;sc<=sc1;sc++){const r=TRANS?sc:sr,c=TRANS?sr:sc,t=T(r,c),x=ox+sc*C,y=oy+sr*C;
       if(t.t===TREE)drawTree(g,x,y,C,hash(r,c));else if(t.t===ROCK||t.t===IRON)drawRock(g,x,y,C,hash(r,c),t.t===IRON);
-      if(t.b){if(t.b.type==='keep')drawKeep(g,x,y,C);else drawB(g,x,y,C,t.b,nbAt(r,c),r,c,true)}}
+      if(t.b){if(t.b.type==='keep')keepAt=[x,y];else drawB(g,x,y,C,t.b,nbAt(r,c),r,c,true)}}
+    // Der Bergfried ist breiter als ein Feld: erst nach den übrigen Gebäuden seiner Reihe zeichnen, damit Mauern daneben nicht hineinragen
+    if(keepAt){drawKeep(g,keepAt[0],keepAt[1],C);keepAt=null}
     rows[sr].sort((a,b)=>a[0]-b[0]).forEach(a=>a[1]());
   }
   // Partikel (in Bildschirmfeldern)
@@ -572,10 +575,10 @@ function timeOfDay(){
 }
 function nightPass(g,amount){
   if(amount<.02)return;
-  if(!Q().light){g.fillStyle=`rgba(8,14,44,${.6*amount})`;g.fillRect(ox,oy,scN()*cell,srN()*cell);return}
+  if(!Q().light){g.fillStyle=`rgba(8,14,44,${.4*amount})`;g.fillRect(ox,oy,scN()*cell,srN()*cell);return}
   if(!dk||dk.width!==cv.width||dk.height!==cv.height){dk=document.createElement('canvas');dk.width=cv.width;dk.height=cv.height;dkg=dk.getContext('2d')}
   dkg.setTransform(1,0,0,1,0,0);dkg.globalCompositeOperation='source-over';dkg.clearRect(0,0,dk.width,dk.height);
-  dkg.setTransform(dpr,0,0,dpr,0,0);dkg.fillStyle=`rgba(8,14,44,${.74*amount})`;dkg.fillRect(ox,oy,scN()*cell,srN()*cell);
+  dkg.setTransform(dpr,0,0,dpr,0,0);dkg.fillStyle=`rgba(8,14,44,${.48*amount})`;dkg.fillRect(ox,oy,scN()*cell,srN()*cell);
   dkg.globalCompositeOperation='destination-out';
   const all=glows.concat(lights.map(l=>({x:l.x,y:l.y,r:l.r*1.3,a:.95})));
   for(const l of all){const gr=dkg.createRadialGradient(l.x,l.y,0,l.x,l.y,l.r);gr.addColorStop(0,`rgba(0,0,0,${l.a})`);gr.addColorStop(1,'rgba(0,0,0,0)');dkg.fillStyle=gr;dkg.fillRect(l.x-l.r,l.y-l.r,l.r*2,l.r*2)}

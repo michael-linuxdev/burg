@@ -295,7 +295,7 @@ function brief(mi){
   const goals=m.goals.length?'<ul class="goals">'+m.goals.map(([t,n])=>'<li>'+GOALTXT[t][0]+' '+n+' '+GOALTXT[t][1]+'</li>').join('')+'</ul>':'';
   $('menu').style.display='none';
   const sizes=mi<0?'<h3>Kartengröße</h3><div class="seg" id="sizeseg">'+Object.entries(MAPSIZE).map(([k,v])=>`<button data-size="${k}" aria-pressed="${k===freeSize}">${v.n} <small>${v.cols}×${v.rows}</small></button>`).join('')+'</div><p class="tip">Größere Karten haben einen Fluss mit Furt, Hügel und Sumpf.</p>':'';
-  modal((mi<0?'':'Mission '+(mi+1)+': ')+m.n,'<p>'+m.s+'</p>'+goals+sizes+'<p class="tip">Alle 6 Tage wechselt die Jahreszeit. Im Winter ruhen Felder und Obstgärten.</p>',
+  modal((mi<0?'':'Mission '+(mi+1)+': ')+m.n,'<p>'+m.s+'</p>'+goals+sizes+'<p class="tip">Alle '+SLEN+' Tage wechselt die Jahreszeit. Im Winter ruhen Felder und Obstgärten.</p>',
     [{t:'Los geht’s',p:1,f:()=>{newGame(mi);closeModal();toast(mi<0?'Die ersten Feinde kommen an Tag 8.':'Viel Erfolg!')}},{t:'Zurück',f:openMenu}]);
   document.querySelectorAll('#sizeseg button').forEach(b=>b.onclick=()=>{freeSize=b.dataset.size;document.querySelectorAll('#sizeseg button').forEach(x=>x.setAttribute('aria-pressed',x===b?'true':'false'))});
 }

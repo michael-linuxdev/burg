@@ -2,7 +2,7 @@
 // Kartengröße: logisch COLS × ROWS, Bergfried bei (KR, KC). Wird pro Mission über setMapSize() gesetzt.
 let COLS=12,ROWS=20,N=COLS*ROWS,KR=11,KC=5,KI=KR*COLS+KC;
 function setMapSize(cols,rows,kr,kc){COLS=cols;ROWS=rows;N=cols*rows;KR=kr;KC=kc;KI=kr*cols+kc}
-const SEAS=[['🌸','Frühling'],['☀️','Sommer'],['🍂','Herbst'],['❄️','Winter']],SLEN=6,CYC=6;
+const SEAS=[['🌸','Frühling'],['☀️','Sommer'],['🍂','Herbst'],['❄️','Winter']],SLEN=10,CYC=6;
 const seasonOf=d=>Math.floor((d-1)/SLEN)%4;
 // Gelände: Gras, Wald, Fels, Wasser (Teich und Fluss), Hügel (bebaubar, Türme schießen weiter),
 // Sumpf (nicht bebaubar, Feinde langsamer), Eisenvorkommen (für die Mine)
@@ -94,7 +94,7 @@ const MISSIONS=[
   {n:'Flammen im Tal',s:'Die Räuber haben Fackelträger dabei. Brunnen löschen Brände in der Nähe, und du kannst brennende Häuser antippen, um sie für 2 Gold zu löschen.',
    seed:5519,res:{...BASE,holz:60,stein:20,aepfel:20,gold:100,bogen:4},pop:16,goals:[['raids',4],['pp',50]],raid:{start:7,every:6,fire:1,ram:99,ladder:3,scale:1}},
   {n:'Die Belagerung',s:'Ein Heer mit Rammböcken rückt an. Pfeile richten gegen sie wenig aus, aber ein starkes Tor und dicke Mauern bremsen sie lange genug.',
-   seed:6623,res:{...BASE,holz:80,stein:40,brot:10,aepfel:20,gold:170,bogen:6,speer:4},pop:18,goals:[['raids',5]],raid:{start:8,every:5,fire:2,ram:2,archer:3,scale:1.4}}
+   seed:6623,res:{...BASE,holz:80,stein:40,brot:30,aepfel:30,gold:170,bogen:6,speer:4},pop:18,goals:[['raids',5]],raid:{start:8,every:5,fire:2,ram:2,archer:3,scale:1.4}}
 ];
 const FREE={n:'Freies Spiel',s:'Endlose Angriffe auf einer zufälligen Karte. Wie lange hält deine Burg?',res:{...BASE,brot:5,bogen:3},pop:10,goals:[],raid:{start:8,every:7,fire:3,ram:5,ladder:4,archer:6,scale:1}};
 const GOALTXT={pop:['👥','Einwohner'],brot:['🍞','Brot auf Vorrat'],raids:['⚔️','Angriffe abgewehrt'],pp:['❤️','Beliebtheit am Ende']};
