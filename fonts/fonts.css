@@ -1,5 +1,6 @@
 /* Selbst gehostete Schriften (SIL Open Font License 1.1, siehe OFL-*.txt) – Zeichensatz „latin“ */
-@font-face{font-family:'Alegreya Sans';font-style:normal;font-weight:400;font-display:swap;src:url(alegreya-sans-400.woff2) format('woff2')}
-@font-face{font-family:'Alegreya Sans';font-style:normal;font-weight:500;font-display:swap;src:url(alegreya-sans-500.woff2) format('woff2')}
-@font-face{font-family:'Alegreya Sans';font-style:normal;font-weight:700;font-display:swap;src:url(alegreya-sans-700.woff2) format('woff2')}
-@font-face{font-family:'Pirata One';font-style:normal;font-weight:400;font-display:swap;src:url(pirata-one-400.woff2) format('woff2')}
+@font-face{font-family:'Fira Sans';font-style:normal;font-weight:400;font-display:swap;src:url(fira-sans-400.woff2) format('woff2')}
+@font-face{font-family:'Fira Sans';font-style:normal;font-weight:500;font-display:swap;src:url(fira-sans-500.woff2) format('woff2')}
+@font-face{font-family:'Fira Sans';font-style:normal;font-weight:700;font-display:swap;src:url(fira-sans-700.woff2) format('woff2')}
+@font-face{font-family:'Cinzel';font-style:normal;font-weight:400;font-display:swap;src:url(cinzel-400.woff2) format('woff2')}
+@font-face{font-family:'Cinzel';font-style:normal;font-weight:700;font-display:swap;src:url(cinzel-700.woff2) format('woff2')}

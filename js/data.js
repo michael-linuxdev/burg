@@ -1,10 +1,15 @@
-// Zinnenwerk – Spieldaten (reine Daten, kein DOM). Alle Zahlenwerte sind in docs/DESIGN.md dokumentiert.
+// Burgwacht – Spieldaten (reine Daten, kein DOM). Alle Zahlenwerte sind in docs/DESIGN.md dokumentiert.
 // Kartengröße: logisch COLS × ROWS, Bergfried bei (KR, KC). Wird pro Mission über setMapSize() gesetzt.
 let COLS=12,ROWS=20,N=COLS*ROWS,KR=11,KC=5,KI=KR*COLS+KC;
 function setMapSize(cols,rows,kr,kc){COLS=cols;ROWS=rows;N=cols*rows;KR=kr;KC=kc;KI=kr*cols+kc}
-const SEAS=[['🌸','Frühling'],['☀️','Sommer'],['🍂','Herbst'],['❄️','Winter']],SLEN=6,CYC=6;
+const SEAS=[['🌸','Frühling'],['☀️','Sommer'],['🍂','Herbst'],['❄️','Winter']],SLEN=10,CYC=6;
 const seasonOf=d=>Math.floor((d-1)/SLEN)%4;
-const GRASS=0,TREE=1,ROCK=2,WATER=3;
+// Gelände: Gras, Wald, Fels, Wasser (Teich und Fluss), Hügel (bebaubar, Türme schießen weiter),
+// Sumpf (nicht bebaubar, Feinde langsamer), Eisenvorkommen (für die Mine)
+const GRASS=0,TREE=1,ROCK=2,WATER=3,HILL=4,SWAMP=5,IRON=6;
+const TNAME=['Gras','Wald','Felsen','Wasser','Hügel','Sumpf','Eisenvorkommen'];
+// Kartengrößen für das freie Spiel: Spalten × Reihen
+const MAPSIZE={klein:{n:'Klein',cols:12,rows:20},mittel:{n:'Mittel',cols:20,rows:28},gross:{n:'Groß',cols:32,rows:40}};
 const DAY=4,SAVE='zinnenwerk-v3',AUTO='zinnenwerk-auto',SLOT='zinnenwerk-slot-',PROG='zinnenwerk-progress',SETTINGS='zinnenwerk-settings';
 const RES=[['holz','🪵'],['stein','🪨'],['weizen','🌾'],['mehl','🫙'],['brot','🍞'],['aepfel','🍎'],['gold','💰'],
   ['eisen','⛓️'],['haeute','🐄'],['bogen','🏹'],['speer','🔱'],['schwert','🗡️'],['leder','🦺']];
@@ -38,11 +43,14 @@ const B={
   kaserne:{n:'Kaserne',i:'🛡️',cost:{holz:10,stein:6},d:'Erlaubt das Ausbilden von Truppen im Hof.'},
   lager:{n:'Lager',cost:{holz:12},store:'lager',d:'+100 Platz je Rohstoff (Holz, Stein, Eisen, Weizen, Mehl, Häute).'},
   korn:{n:'Kornkammer',cost:{holz:10,stein:4},store:'korn',d:'+80 Platz für Brot und Äpfel.'},
-  mine:{n:'Eisenmine',cost:{holz:15,stein:5},w:2,prod:{eisen:2},near:ROCK,r:1,col:'#7A5A4A',d:'2 Eisen pro Tag. Muss direkt an Felsen stehen.'},
+  mine:{n:'Eisenmine',cost:{holz:15,stein:5},w:2,prod:{eisen:2},near:IRON,r:1,col:'#7A5A4A',d:'2 Eisen pro Tag. Muss direkt an einem Eisenvorkommen (rostrote Felsen) stehen.'},
   weide:{n:'Viehweide',cost:{holz:8},w:1,prod:{haeute:2},col:'#8A6A44',d:'2 Häute pro Tag. Im Winter weniger (1).'},
   gerber:{n:'Gerberei',cost:{holz:12},w:1,use:{haeute:2},prod:{leder:1},col:'#6E4A2A',tier:2,d:'Macht aus 2 Häuten 1 Lederrüstung.'},
   bogner:{n:'Bogenmacher',cost:{holz:12},w:1,use:{holz:2},prod:{bogen:1},col:'#6B4A2A',tier:2,d:'Schnitzt aus 2 Holz 1 Bogen.'},
   schmied:{n:'Schmied',cost:{holz:10,stein:10},w:1,modes:{speer:{use:{eisen:1,holz:1},prod:{speer:1}},schwert:{use:{eisen:2},prod:{schwert:1}}},mode:'speer',col:'#3A3A42',tier:2,d:'Schmiedet Speere (1 Eisen + 1 Holz) oder Schwerter (2 Eisen). Antippen zum Umstellen.'},
+  bruecke:{n:'Brücke',cost:{holz:12},bridge:1,nofire:1,d:'Nur auf Wasser. Deine Leute und Feinde können darüber laufen – eine gute Engstelle.'},
+  markt:{n:'Markt',cost:{holz:20,stein:6},d:'Kaufe und verkaufe Waren im Hof.'},
+  apotheke:{n:'Apotheke',cost:{holz:10,stein:6,gold:25},w:1,d:'Heilt Seuchen schnell und beugt ihnen vor. Braucht 1 Arbeiter.'},
   ruest:{n:'Rüstkammer',cost:{holz:8,stein:12},store:'waffen',d:'+20 Platz je Waffenart. Ohne Rüstkammer passen nur wenige Waffen in den Bergfried.'},
   abriss:{n:'Abreißen',i:'✖️',cost:{},drag:1,tool:1,d:'Tippe oder ziehe über Gebäude. Du bekommst die Hälfte zurück.'}
 };
@@ -55,7 +63,8 @@ const ETYPE={
   fire:{n:'Brandstifter',pl:'Brandstifter',hpM:.7,spd:1.3,dmg:2,armor:1},
   ram:{n:'Rammbock',pl:'Rammböcke',hpM:3.5,spd:.45,dmg:14,armor:.34},
   archer:{n:'feindlicher Bogenschütze',pl:'feindliche Bogenschützen',hpM:.8,spd:1,dmg:2,armor:1,range:3.5},
-  ladder:{n:'Leitermann',pl:'Leitermänner',hpM:.9,spd:1.1,dmg:2,armor:1,climb:2.5}
+  ladder:{n:'Leitermann',pl:'Leitermänner',hpM:.9,spd:1.1,dmg:2,armor:1,climb:2.5},
+  wolf:{n:'Wolf',pl:'Wölfe',hpM:.6,spd:1.7,dmg:2,armor:1,beast:1}
 };
 // Sold: Gold pro Bogenschütze und Tag. Ausbildung kostet ARCHER_GOLD.
 const WAVE_GOLD=10,KILL_GOLD=2,RAM_GOLD=6,SOLD=1,ARCHER_GOLD=12;
@@ -68,10 +77,16 @@ const UNIT={
   sword:{n:'Schwertkämpfer',pl:'Schwertkämpfer',i:'🗡️',gold:15,need:{schwert:1,leder:1},sold:2,hp:26,spd:.85,dmg:6,rate:1,reach:.9,armor:.6,col:'#7A2E2E',d:'Langsam, aber zäh und schlagkräftig.'},
   knight:{n:'Ritter',pl:'Ritter',i:'🐎',gold:40,need:{schwert:1,leder:1},sold:3,hp:34,spd:2.3,dmg:7,rate:1.2,reach:1,armor:.6,col:'#C9A23A',d:'Schnell zu Pferd, ideal für Ausfälle.'}
 };
+// Markt: Gold je Stück beim Kaufen und Verkaufen. Gehandelt wird in Paketen zu TRADE_N Stück.
+const TRADE_N=5;
+const PRICE={holz:[2,1],stein:[3,1.5],eisen:[6,3],weizen:[2,1],mehl:[3,1.5],brot:[2,1],aepfel:[1.6,.6],haeute:[3,1.4],bogen:[10,5],speer:[10,5],schwert:[16,8],leder:[10,5]};
+// Ereignisse (js/events.js). w: Gewicht bei der Auswahl. Bedingungen und Wirkungen stehen in events.js.
+const SWAMP_SLOW=.5,HILL_RANGE=1;// Sumpf: Tempo-Faktor; Hügel: Reichweitenbonus für Bogenschützen und Wachen auf Türmen/Mauern
+const EVENT_CHANCE=.12,EVENT_COOL=5,PEST_DAYS=5,BAD_HARVEST_DAYS=6;
 const BASE={holz:40,stein:0,weizen:0,mehl:0,brot:0,aepfel:15,gold:60,eisen:0,haeute:0,bogen:0,speer:0,schwert:0,leder:0};
 const MISSIONS=[
   {n:'Ein neuer Anfang',s:'Der König hat dir ein Stück Land überlassen. Noch droht keine Gefahr. Baue ein Dorf auf, in dem die Leute gerne leben.',
-   seed:1201,res:{...BASE},pop:10,goals:[['pop',24]],raid:null},
+   seed:1201,res:{...BASE},pop:10,goals:[['pop',24]],raid:null,events:false},
   {n:'Brot für alle',s:'Äpfel allein machen niemanden satt. Baue die Brotkette aus Weizenhof, Mühle und Bäckerei auf. Eine kleine Bande treibt sich herum.',
    seed:3307,res:{...BASE,holz:60,aepfel:20},pop:14,goals:[['brot',40]],raid:{start:10,every:9,fire:99,ram:99,scale:.6}},
   {n:'Steinerne Wacht',s:'Räuber ziehen durch das Tal. Baue Mauern und Türme und wehre drei Angriffe ab. Denk an ein Tor, sonst kommen deine Leute nicht mehr hinaus.',
@@ -79,7 +94,7 @@ const MISSIONS=[
   {n:'Flammen im Tal',s:'Die Räuber haben Fackelträger dabei. Brunnen löschen Brände in der Nähe, und du kannst brennende Häuser antippen, um sie für 2 Gold zu löschen.',
    seed:5519,res:{...BASE,holz:60,stein:20,aepfel:20,gold:100,bogen:4},pop:16,goals:[['raids',4],['pp',50]],raid:{start:7,every:6,fire:1,ram:99,ladder:3,scale:1}},
   {n:'Die Belagerung',s:'Ein Heer mit Rammböcken rückt an. Pfeile richten gegen sie wenig aus, aber ein starkes Tor und dicke Mauern bremsen sie lange genug.',
-   seed:6623,res:{...BASE,holz:80,stein:40,brot:10,aepfel:20,gold:150,bogen:6,speer:4},pop:18,goals:[['raids',5]],raid:{start:8,every:5,fire:2,ram:2,archer:3,scale:1.4}}
+   seed:6623,res:{...BASE,holz:80,stein:40,brot:30,aepfel:30,gold:170,bogen:6,speer:4},pop:18,goals:[['raids',5]],raid:{start:8,every:5,fire:2,ram:2,archer:3,scale:1.4}}
 ];
 const FREE={n:'Freies Spiel',s:'Endlose Angriffe auf einer zufälligen Karte. Wie lange hält deine Burg?',res:{...BASE,brot:5,bogen:3},pop:10,goals:[],raid:{start:8,every:7,fire:3,ram:5,ladder:4,archer:6,scale:1}};
 const GOALTXT={pop:['👥','Einwohner'],brot:['🍞','Brot auf Vorrat'],raids:['⚔️','Angriffe abgewehrt'],pp:['❤️','Beliebtheit am Ende']};

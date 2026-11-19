@@ -1,32 +1,49 @@
-// Zinnenwerk – Kamera, Gesten, Oberfläche, Menüs, Hauptschleife
+// Burgwacht – Kamera, Gesten, Oberfläche, Menüs, Hauptschleife
 // ---------- Kamera ----------
 let zoom=1,baseCell=30,vw=0,vh=0,padT=0,padB=0,padL=0,padR=0;
 function resize(){
   const r=$('stage').getBoundingClientRect();dpr=Math.min(window.devicePixelRatio||1,Q().dpr);
   const wasW=vw,land=r.width>r.height*1.1,flip=land!==TRANS;
   if(flip){TRANS=land;document.body.classList.toggle('land',land);zoom=1;terrKey='';weather=[];parts=[]}
+  const refocus=flip||!wasW;
   vw=r.width;vh=r.height;cv.width=Math.round(vw*dpr);cv.height=Math.round(vh*dpr);
   if(TRANS){const h=$('hud').getBoundingClientRect(),sr=$('stage').getBoundingClientRect();padL=h.right-sr.left+10;padR=10;padT=10;padB=10}
   else{padL=0;padR=0;padT=$('hud').offsetHeight+14;padB=$('dock').offsetHeight+20}
   const nb=Math.max(8,Math.min((vw-padL-padR)/scN(),(vh-padT-padB)/srN()));
-  if(flip||Math.abs(nb-baseCell)>.01||!wasW){baseCell=nb;terrKey='';cell=baseCell*zoom;ox=padL+((vw-padL-padR)-scN()*cell)/2;oy=padT+((vh-padT-padB)-srN()*cell)/2}
+  if(flip||!wasW){baseCell=nb;terrKey='';cell=baseCell*zoom;ox=padL+((vw-padL-padR)-scN()*cell)/2;oy=padT+((vh-padT-padB)-srN()*cell)/2}
+  else if(Math.abs(nb-baseCell)>.01){// Platz geändert (z. B. Werkzeugleiste): Feldgröße und Bildmitte beibehalten
+    const wx=(vw/2-ox)/cell,wy=(vh/2-oy)/cell,keep=cell;baseCell=nb;terrKey='';zoom=Math.max(1,Math.min(maxZoom(),keep/baseCell));cell=baseCell*zoom;ox=vw/2-wx*cell;oy=vh/2-wy*cell}
   else cell=baseCell*zoom;
-  clampCam();
+  clampCam();if(refocus&&S)focusKeep();
 }
 function clampCam(){
   const mw=scN()*cell,mh=srN()*cell,aw=vw-padL-padR,ah=vh-padT-padB;
   if(mw<=aw)ox=padL+(aw-mw)/2;else ox=Math.min(padL,Math.max(vw-padR-mw,ox));
   if(mh<=ah)oy=padT+(ah-mh)/2;else oy=Math.min(padT,Math.max(vh-padB-mh,oy));
 }
-function zoomAt(px,py,z){z=Math.max(1,Math.min(3,z));const wx=(px-ox)/cell,wy=(py-oy)/cell;zoom=z;cell=baseCell*z;ox=px-wx*cell;oy=py-wy*cell;clampCam()}
+// Zoom 1 = ganze Karte passt hinein. Große Karten dürfen weiter hineinzoomen (Feld bis etwa 84 px).
+const maxZoom=()=>Math.max(3,84/baseCell);
+// Kamera auf den Bergfried richten; große Karten starten so nah, dass ein Feld etwa 34 px groß ist
+function focusKeep(){
+  zoom=Math.min(maxZoom(),Math.max(1,34/baseCell));cell=baseCell*zoom;
+  const kx=(TRANS?KR:KC)+.5,ky=(TRANS?KC:KR)+.5;ox=padL+(vw-padL-padR)/2-kx*cell;oy=padT+(vh-padT-padB)/2-ky*cell;clampCam();
+}
+function zoomAt(px,py,z){z=Math.max(1,Math.min(maxZoom(),z));const wx=(px-ox)/cell,wy=(py-oy)/cell;zoom=z;cell=baseCell*z;ox=px-wx*cell;oy=py-wy*cell;clampCam()}
 
 // ---------- Oberfläche ----------
 const tq=[];let tBusy=false;
 function toast(m){if(tq.length&&tq[tq.length-1]===m)return;tq.push(m);if(tq.length>4)tq.shift();if(!tBusy)nextToast()}
 H.say=toast;
 H.vibrate=p=>{if(!SET.vibrate)return;try{navigator.vibrate&&navigator.vibrate(p)}catch(e){}};
-function nextToast(){const el=$('toast');if(!tq.length){tBusy=false;el.classList.remove('show');return}tBusy=true;el.textContent=tq.shift();el.classList.add('show');setTimeout(()=>{el.classList.remove('show');setTimeout(nextToast,220)},2400)}
-const GROUPS=[['Wohnen und Glaube',['haus','kapelle','brunnen']],['Nahrung',['obst','farm','muehle','baecker']],['Rohstoffe',['holzf','stein','mine','weide']],['Lager',['lager','korn','ruest']],['Waffen',['bogner','schmied','gerber']],['Burg',['mauer','tor','turm','kaserne']],['Werkzeug',['abriss']]];
+// Meldungen als Banner: führendes Symbol in eine Plakette, Farbe nach Art (schlecht, gut, neutral)
+const EMO=/^(\p{Extended_Pictographic}(\uFE0F|\u200D\p{Extended_Pictographic})*)\s*/u;
+const BAD=/Angriff:|gefallen|brennt|Brand|abgebrannt|Seuche|Wölfe|Blitz|hungert|frieren|fehlt|murrt|verlassen|verfallen|Missernte|abgeschnitten|Nicht genug|Kein|nicht/i;
+const GOOD=/abgewehrt|geschafft|gelöscht|besiegt|bereit|Ausgebaut|Gespeichert|geladen|vorüber|Abgemacht|Viel Erfolg|wieder/i;
+function toastHtml(m){const e=m.match(EMO),ic=e?e[1]:'📜',t=e?m.slice(e[0].length):m;const kind=BAD.test(t)?'bad':GOOD.test(t)?'good':'info';
+  return[`<span class="ti">${ic}</span><span class="tx"></span>`,t,kind]}
+function nextToast(){const el=$('toast');if(!tq.length){tBusy=false;el.classList.remove('show');return}tBusy=true;
+  const[h,t,kind]=toastHtml(tq.shift());el.innerHTML=h;el.querySelector('.tx').textContent=t;el.dataset.kind=kind;el.classList.add('show');setTimeout(()=>{el.classList.remove('show');setTimeout(nextToast,220)},2400)}
+const GROUPS=[['Wohnen und Glaube',['haus','kapelle','brunnen','apotheke']],['Nahrung',['obst','farm','muehle','baecker']],['Rohstoffe',['holzf','stein','mine','weide']],['Lager und Handel',['lager','korn','ruest','markt']],['Waffen',['bogner','schmied','gerber']],['Burg',['mauer','tor','turm','kaserne']],['Wege',['bruecke']],['Werkzeug',['abriss']]];
 function buildCards(){
   const el=$('cards');el.innerHTML='';
   for(const[name,keys]of GROUPS){
@@ -79,11 +96,23 @@ function court(){
   const ub=$('upgrade');ub.style.display=nx?'':'none';
   if(nx){ub.disabled=!!upgradeWhy();ub.textContent='Ausbauen zur '+nx.n+' ('+costTxt(nx.cost)+')';$('upsub').textContent=nx.n+': '+nx.hp+' LP, '+nx.guards+' Wachen, '+nx.pop+' Grundplätze, größere Grundlager.'}
   else $('upsub').textContent='Deine Burg ist voll ausgebaut.';
+  // Markt
+  const hasM=count('markt')>0;$('marketsub').textContent=hasM?'Pakete zu '+TRADE_N+' Stück. Gekauftes muss ins Lager passen.':'Baue einen Markt („Lager und Handel“), um Waren zu kaufen und zu verkaufen.';
+  $('market').style.display=hasM?'':'none';
+  if(hasM)$('market').innerHTML=Object.keys(PRICE).map(k=>{const bw=tradeWhy(k,1),sw=tradeWhy(k,-1);
+    return `<li><span>${RICON[k]} ${RNAME[k]} <small>${Math.floor(S.res[k])}</small></span><span class="tr"><button class="btn" data-k="${k}" data-d="-1" ${sw?'disabled title="'+sw+'"':''}>−${TRADE_N} · +${tradePrice(k,-1)} 💰</button><button class="btn" data-k="${k}" data-d="1" ${bw?'disabled title="'+bw+'"':''}>+${TRADE_N} · −${tradePrice(k,1)} 💰</button></span></li>`}).join('');
   // Lager
   $('storesub').innerHTML=Object.keys(STORE_NAME).map(kind=>{const ks=Object.keys(STORE).filter(k=>STORE[k]===kind),c=storeCap(kind);
     return `<li><span>${STORE_NAME[kind]} <small>(je ${c})</small></span><span>${ks.filter(k=>S.res[k]>0||kind!=='waffen').map(k=>`<span class="${S.res[k]>=c?'minus':''}">${RICON[k]} ${Math.floor(S.res[k])}</span>`).join(' ')||'leer'}</span></li>`}).join('')+
     (Object.keys(S.spill).length?`<li class="minus"><span>Heute verfallen</span><span>${Object.entries(S.spill).map(([k,v])=>v+' '+RICON[k]).join(' ')}</span></li>`:'');
 }
+// Berater: Im Hochformat klappt die Sprechblase bei einem neuen Hinweis kurz auf und schließt sich nach 7 s wieder.
+let adviceT=0;
+function openAdvice(stay){const a=$('advice');a.classList.add('open');clearTimeout(adviceT);if(!stay)adviceT=setTimeout(()=>a.classList.remove('open'),7000)}
+$('advisorBtn').onclick=()=>{if($('advice').classList.contains('open')){$('advice').classList.remove('open');clearTimeout(adviceT)}else openAdvice()};
+$('hint').onclick=()=>{$('advice').classList.remove('open');clearTimeout(adviceT)};
+// „▾“ klappt die Statusleiste aus: alle Ressourcen, Zielbeschreibungen
+$('hudMore').onclick=()=>{const f=$('hud').classList.toggle('full');$('hudMore').setAttribute('aria-expanded',f);$('hudMore').textContent=f?'▴':'▾';requestAnimationFrame(resize)};
 function hint(){
   if(sel===TROOP)return !S.units.length?'Keine Truppen. Bilde sie im Hof aus.':picked.size?'Tippe auf ein Feld, eine Mauer oder einen Turm, um die Truppen hinzuschicken. Tippe auf einen Feind, um ihn anzugreifen.':'Tippe auf Einheiten oder ziehe mit einem Finger einen Rahmen. Zwei Finger verschieben die Karte.';
   if(sel)return B[sel].drag?'Mit dem Finger über die Felder ziehen. Mit zwei Fingern verschieben.':'Tippe auf ein helles Feld. Ein Finger verschiebt die Karte.';
@@ -91,13 +120,16 @@ function hint(){
   const sea=seasonOf(S.day),left=SLEN-((S.day-1)%SLEN);
   if(sea===3&&S.cold)return 'Deine Leute frieren. Holzfäller liefern Brennholz.';
   const sp=Object.keys(S.spill);if(sp.length)return 'Lager voll: '+sp.map(k=>RNAME[k]).join(', ')+' verfällt. Baue '+[...new Set(sp.map(k=>STORE_NAME[STORE[k]]))].join(' oder ')+'.';
+  if(S.ev.pest>0&&!count('apotheke'))return 'Seuche! Jeden Tag stirbt jemand. Eine Apotheke („Wohnen und Glaube“) heilt sie.';
+  if(S.enemies.some(e=>e.type==='wolf'))return 'Wölfe streifen umher. Bogenschützen und Nahkämpfer vertreiben sie.';
+  if(S.ev.harvest>0)return 'Missernte: Höfe und Obstgärten tragen noch '+S.ev.harvest+(S.ev.harvest===1?' Tag':' Tage')+' nur halb so viel. Am Markt kannst du Essen kaufen.';
   if(S.unpaid)return 'Der Sold für deine Truppen fehlt. Erhöhe die Steuern oder bilde vorerst keine weiteren Truppen aus.';
   if(S.enemies.some(e=>e.type==='ram'&&e.wait<=0)&&S.units.some(u=>u.type==='spear'))return 'Rammböcke! Schicke Speerträger hin: Sie richten dreifachen Schaden an. Tippe dazu auf „Truppen“.';
   if(S.enemies.some(e=>e.type==='ladder'&&e.wait<=0))return 'Leitermänner klettern über Mauern. Stelle Nahkämpfer auf die Mauer oder hinter die Mauer.';
   if(S.enemies.some(e=>e.type==='archer'&&e.wait<=0)&&S.units.some(u=>UNIT[u.type].reach))return 'Feindliche Bogenschützen beschießen deine Truppen. Ritter und Schwertkämpfer holen sie bei einem Ausfall.';
   if(!count('holzf'))return 'Tippe auf „Bauen“ und setze einen Holzfäller an den Waldrand.';
   if(!count('obst')&&!count('farm'))return 'Baue einen Obstgarten, damit niemand hungert.';
-  const cut=S.grid.filter(t=>t.b&&t.b.cut).length;if(cut)return cut+' Gebäude sind abgeschnitten (graues Zeichen). Baue ein Tor in die Mauer.';
+  const cut=S.grid.filter(t=>t.b&&t.b.cut).length;if(cut)return cut+' Gebäude sind abgeschnitten (graues Zeichen). Baue ein Tor in die Mauer oder eine Brücke über den Fluss.';
   if(sea===2&&left<=3)return 'Der Winter kommt in '+left+(left===1?' Tag':' Tagen')+'. Lege Essen und Holz auf Vorrat.';
   if(sea===3)return 'Winter: Felder ruhen (blaues Zeichen). Brot und Vorräte bringen dich durch.';
   if(S.pop>=cap()-1&&count('haus')<2)return 'Baue Hütten, damit neue Leute zuziehen.';
@@ -108,6 +140,8 @@ function hint(){
   if(S.nextRaid!=null&&!count('mauer')&&S.nextRaid<=4)return 'Ziehe Mauern um den Bergfried, bevor die Feinde kommen.';
   if(S.nextRaid!=null&&!count('kaserne')&&S.raids>=1)return 'Mit einer Kaserne bildest du im Hof Truppen aus.';
   if(S.nextRaid!=null&&count('kaserne')&&S.res.bogen<1&&!count('bogner'))return 'Bogenschützen brauchen Bögen. Ein Bogenmacher schnitzt sie aus Holz.';
+  if(count('mine')===0&&count('schmied')&&S.grid.some(t=>t.t===IRON))return 'Der Schmied braucht Eisen. Setze eine Eisenmine an ein Eisenvorkommen (rostrote Felsen).';
+  if(S.res.gold>=150&&!count('markt')&&S.day>12)return 'Viel Gold auf der hohen Kante? Mit einem Markt kaufst du fehlende Waren.';
   if(KEEP_LV[S.keepLv+1]&&!upgradeWhy())return 'Du kannst deine Burg im Hof zur '+KEEP_LV[S.keepLv+1].n+' ausbauen.';
   if(S.idle>0)return S.idle===1?'1 Person hat keine Arbeit.':S.idle+' Leute haben keine Arbeit.';
   const off=S.grid.filter(t=>t.b&&B[t.b.type]&&B[t.b.type].w&&!t.b.on).length;
@@ -118,24 +152,27 @@ let hudT=0;const BASE_SHOW=['holz','stein','weizen','mehl','brot','aepfel','gold
 function hud(force){
   const t=performance.now();if(!force&&t-hudT<200)return;hudT=t;
   const sea=seasonOf(S.day),tod=timeOfDay();
-  $('day').textContent='Tag '+S.day;$('season').textContent=SEAS[sea][0]+' '+SEAS[sea][1];$('clock').textContent=tod.label[0];$('clock').title=tod.label[1];$('clock').setAttribute('aria-label',tod.label[1]);
+  $('day').textContent='Tag '+S.day;$('season').textContent=SEAS[sea][0];$('seasonName').textContent=SEAS[sea][1];$('clock').textContent=tod.label[0]+' '+tod.label[1];
+  $('medal').style.setProperty('--p',(S.clock/DAY).toFixed(3));$('medal').title=SEAS[sea][1]+', noch '+(SLEN-((S.day-1)%SLEN))+' Tage';
   // Grundrohstoffe immer, weitere nur wenn vorhanden oder ein Erzeuger steht. Fast volle Lager werden markiert.
   const prodBy=k=>Object.keys(B).some(t=>(B[t].prod&&B[t].prod[k]||B[t].modes&&Object.values(B[t].modes).some(m=>m.prod[k]))&&count(t));
   $('res').innerHTML=RES.filter(([k])=>BASE_SHOW.includes(k)||S.res[k]>0||prodBy(k)).map(([k,i])=>{const c=resCap(k),v=Math.floor(S.res[k]),cls=S.spill[k]?'spill':v>=c*.9?'full':'';
-    return `<span class="${cls}" title="${RNAME[k]}${isFinite(c)?' ('+v+' von '+c+')':''}">${i} <b>${v}</b></span>`}).join('');
-  $('popl').textContent='👥 '+S.pop+'/'+cap()+(S.idle>0?' ('+S.idle+' frei)':'');
+    return `<span class="rc ${cls}" title="${RNAME[k]}${isFinite(c)?' ('+v+' von '+c+')':''}"><i>${i}</i><b>${v}</b></span>`}).join('');
+  $('popl').innerHTML='<i>👥</i><b>'+S.pop+'</b><small>/'+cap()+'</small>'+(S.idle>0?'<em title="ohne Arbeit">'+S.idle+' frei</em>':'');
   $('ppn').textContent=Math.round(S.pp);
   const pb=$('ppb');pb.style.width=S.pp+'%';pb.style.background=S.pp>=50?'var(--good)':S.pp>=25?'var(--gold)':'var(--danger)';
   const tr=$('trend');tr.textContent=S.lastDelta>0?'▲':S.lastDelta<0?'▼':'';tr.className=S.lastDelta>0?'plus':'minus';
   const rd=$('raid');
-  if(S.enemies.length){rd.textContent='⚔️ '+S.enemies.length+' Feinde';rd.className='soon'}
-  else if(S.nextRaid==null){rd.textContent='🕊️ Friedlich';rd.className=''}
-  else{rd.textContent='⚔️ in '+S.nextRaid+(S.nextRaid===1?' Tag':' Tagen');rd.className=S.nextRaid<=3?'soon':''}
-  $('dayprog').firstChild.style.width=(S.clock/DAY*100)+'%';
+  if(S.enemies.length){rd.innerHTML='<i>⚔️</i><b>'+S.enemies.length+'</b><small>Feinde</small>';rd.className='war'}
+  else if(S.nextRaid==null){rd.innerHTML='<i>🕊️</i><small>Friedlich</small>';rd.className='calm'}
+  else{rd.innerHTML='<i>⚔️</i><small>in</small><b>'+S.nextRaid+'</b><small>'+(S.nextRaid===1?'Tag':'Tagen')+'</small>';rd.className=S.nextRaid<=3?'soon':''}
   const m=mission();
-  if(m.goals.length)$('goal').innerHTML='Ziel: '+goalState().map(g=>`<span class="${g.ok?'done':''}">${GOALTXT[g.t][0]} ${Math.min(g.v,g.n)}/${g.n} ${GOALTXT[g.t][1]}</span>`).join(', ');
-  else $('goal').textContent='Freies Spiel: '+S.repelled+(S.repelled===1?' Angriff':' Angriffe')+' abgewehrt';
-  $('hint').textContent=hint();
+  // Auftrag: jedes Ziel als kleine Fortschrittsleiste
+  const gs=m.goals.length?goalState():[];
+  const gh=m.goals.length?gs.map(g=>`<span class="gq${g.ok?' done':''}" title="${GOALTXT[g.t][1]}"><i>${GOALTXT[g.t][0]}</i><span class="gb"><b style="width:${Math.min(100,Math.round(g.v/g.n*100))}%"></b></span><em>${Math.min(g.v,g.n)}/${g.n}</em><small>${GOALTXT[g.t][1]}</small></span>`).join('')
+    :`<span class="gq"><i>⚔️</i><em>${S.repelled}</em><small>${S.repelled===1?'Angriff':'Angriffe'} abgewehrt</small></span>`;
+  const gk=gh+'|'+(m.goals.length?1:0);if($('goal').dataset.k!==gk){$('goal').dataset.k=gk;$('goal').innerHTML=`<span class="gl">${m.goals.length?'Auftrag':'Endlos'}</span>`+gh}
+  const ht=hint();if($('hint').textContent!==ht){$('hint').textContent=ht;openAdvice()}
   $('tUndo').disabled=!canUndo();troopBar();
   const ta=!sel&&troopsAvail();if(($('openTroops').style.display!=='none')!==ta){$('openTroops').style.display=ta?'flex':'none';requestAnimationFrame(resize)}
   if($('courtWrap').classList.contains('open'))court();
@@ -152,11 +189,16 @@ function info(r,c){
     if(b.cut)return toast(d.n+' ist abgeschnitten. Deine Leute brauchen einen Weg zum Bergfried.');
     if(b.winter)return toast(d.n+' ruht im Winter.');
     if(d.modes){b.mode=b.mode==='schwert'?'speer':'schwert';AU.play('klick');return toast('Schmied stellt jetzt '+(b.mode==='schwert'?'Schwerter':'Speere')+' her ('+costTxt(d.modes[b.mode].use)+' → '+costTxt(d.modes[b.mode].prod)+').')}
+    if(b.type==='markt'){openSheet('courtWrap');requestAnimationFrame(()=>$('marketH').scrollIntoView({block:'start'}));return}
+    if(b.type==='bruecke')return toast('Brücke. Deine Leute und Feinde laufen darüber.');
+    if(b.type==='apotheke')return toast('Apotheke: '+(b.on?(S.ev.pest?'kämpft gegen die Seuche.':'bereit. Sie beugt Seuchen vor.'):'braucht 1 Arbeiter.'));
     if(d.store)return toast(d.n+': +'+STORE_ADD[d.store]+' Platz je Rohstoff. Insgesamt passen jetzt '+storeCap(d.store)+' hinein.');
     if(d.w)return toast(d.n+': '+(b.on?(b.starved?'wartet auf Rohstoffe ('+costTxt(recipe(b).use)+').':'arbeitet.'):'braucht '+d.w+' Arbeiter.'));
     return toast(d.n+'. '+d.d);
   }
-  toast(t.t===TREE?'Wald. Holzfäller brauchen ihn in der Nähe.':t.t===ROCK?'Felsen. Hier gehört ein Steinbruch hin.':t.t===WATER?(seasonOf(S.day)===3?'Ein zugefrorener Teich.':'Ein Teich.'):'Freies Feld. Öffne „Bauen“, um etwas zu errichten.');
+  toast(t.t===TREE?'Wald. Holzfäller brauchen ihn in der Nähe.':t.t===ROCK?'Felsen. Hier gehört ein Steinbruch hin.':t.t===IRON?'Eisenvorkommen. Hier gehört eine Eisenmine hin.':
+    t.t===HILL?'Hügel. Bogenschützen auf Hügeln schießen 1 Feld weiter – ein guter Platz für Türme.':t.t===SWAMP?'Sumpf. Feinde kommen hier nur halb so schnell voran. Bauen kann man hier nicht.':
+    t.t===WATER?(seasonOf(S.day)===3?'Zugefrorenes Wasser. ':'Wasser. ')+'Mit einer Brücke kommen deine Leute hinüber – Feinde aber auch.':'Freies Feld. Öffne „Bauen“, um etwas zu errichten.');
 }
 // ---------- Gesten ----------
 const ptrs=new Map();let gest=null;
@@ -196,6 +238,7 @@ function tap(p){if(S.over||S.won)return;
 function setSpeed(v){speed=v;document.querySelectorAll('.speed button').forEach(x=>x.setAttribute('aria-pressed',+x.dataset.s===v?'true':'false'))}
 document.querySelectorAll('.speed button').forEach(b=>b.onclick=()=>setSpeed(+b.dataset.s));
 $('upgrade').onclick=()=>{const why=upgradeKeep();if(why)toast(why);terrKey='';court();hud(true)};
+$('market').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;const why=trade(b.dataset.k,+b.dataset.d);if(why)toast(why+'.');court();hud(true)});
 function buildRecruits(){
   const el=$('recruits');el.innerHTML='';
   for(const[t,U]of Object.entries(UNIT)){const b=document.createElement('button');b.className='ubtn';b.dataset.t=t;
@@ -248,18 +291,25 @@ $('toolbar').addEventListener('click',e=>{const b=e.target.closest('.chip');if(!
 // ---------- Menü & Dialoge ----------
 function modal(title,html,btns){
   $('mTitle').textContent=title;$('mBody').innerHTML=html;const row=$('mBtns');row.innerHTML='';
-  btns.forEach(b=>{const el=document.createElement('button');el.className='btn'+(b.p?' primary':'');el.textContent=b.t;el.onclick=b.f;row.appendChild(el)});
+  btns.forEach(b=>{const el=document.createElement('button');el.className='btn'+(b.p?' primary':'');el.textContent=b.t;el.onclick=b.f;if(b.d){el.disabled=true;el.title=b.d}row.appendChild(el)});
   $('modal').style.display='flex';uiPause=true;closeSheets();
 }
+H.event=p=>{
+  modal(p.i+' '+p.n,'<p>'+p.text+'</p>',[...p.opts.map((o,i)=>({t:o.t,p:1,d:eventWhy(o),f:()=>{const w=resolveEvent(i);closeModal();toast(w?w+'.':'Abgemacht!');hud(true)}})),
+    {t:'Ablehnen',f:()=>{resolveEvent(-1);closeModal()}}]);
+};
 function closeModal(){$('modal').style.display='none';$('menu').style.display='none';uiPause=false;if(S)hud(true);if(typeof tutTick==='function')tutTick()}
 function brief(mi){
   const m=mi<0?FREE:MISSIONS[mi];
   const goals=m.goals.length?'<ul class="goals">'+m.goals.map(([t,n])=>'<li>'+GOALTXT[t][0]+' '+n+' '+GOALTXT[t][1]+'</li>').join('')+'</ul>':'';
   $('menu').style.display='none';
-  modal((mi<0?'':'Mission '+(mi+1)+': ')+m.n,'<p>'+m.s+'</p>'+goals+'<p class="tip">Alle 6 Tage wechselt die Jahreszeit. Im Winter ruhen Felder und Obstgärten.</p>',
+  const sizes=mi<0?'<h3>Kartengröße</h3><div class="seg" id="sizeseg">'+Object.entries(MAPSIZE).map(([k,v])=>`<button data-size="${k}" aria-pressed="${k===freeSize}">${v.n} <small>${v.cols}×${v.rows}</small></button>`).join('')+'</div><p class="tip">Größere Karten haben einen Fluss mit Furt, Hügel und Sumpf.</p>':'';
+  modal((mi<0?'':'Mission '+(mi+1)+': ')+m.n,'<p>'+m.s+'</p>'+goals+sizes+'<p class="tip">Alle '+SLEN+' Tage wechselt die Jahreszeit. Im Winter ruhen Felder und Obstgärten.</p>',
     [{t:'Los geht’s',p:1,f:()=>{newGame(mi);closeModal();toast(mi<0?'Die ersten Feinde kommen an Tag 8.':'Viel Erfolg!')}},{t:'Zurück',f:openMenu}]);
+  document.querySelectorAll('#sizeseg button').forEach(b=>b.onclick=()=>{freeSize=b.dataset.size;document.querySelectorAll('#sizeseg button').forEach(x=>x.setAttribute('aria-pressed',x===b?'true':'false'))});
 }
-function newGame(mi){startGame(mi);resetView();zoom=1;setSpeed(SET.speed);refreshSel();resize();if(typeof tutMaybeStart==='function')tutMaybeStart()}
+let freeSize='mittel';
+function newGame(mi){startGame(mi,mi<0?{size:freeSize}:{});resetView();zoom=1;setSpeed(SET.speed);refreshSel();resize();focusKeep();if(typeof tutMaybeStart==='function')tutMaybeStart()}
 H.won=()=>{
   const next=S.mi+1<MISSIONS.length?S.mi+1:null;
   modal('Mission geschafft','<p>„'+mission().n+'“ ist abgeschlossen. Deine Burg steht nach '+S.day+' Tagen stolzer da als je zuvor.</p>'+(next==null?'<p>Das war die letzte Mission. Im freien Spiel kannst du weiterbauen.</p>':''),
@@ -297,7 +347,7 @@ function renderSlots(){
     if(id!=='auto'&&running){const b=document.createElement('button');b.className='btn';b.textContent='Speichern';
       b.onclick=()=>{if(o&&!b.dataset.sure){b.dataset.sure=1;b.textContent='Überschreiben?';return}saveSlot(id);toast('Gespeichert in '+label+'.');renderSlots()};btns.appendChild(b)}
     if(o){const b=document.createElement('button');b.className='btn primary';b.textContent='Laden';
-      b.onclick=()=>{const fresh=readSave(key);if(!fresh)return;resume(fresh);save();resetView();zoom=1;setSpeed(SET.speed);refreshSel();resize();closeModal();toast(label+' geladen.')};btns.appendChild(b)}
+      b.onclick=()=>{const fresh=readSave(key);if(!fresh)return;resume(fresh);save();resetView();zoom=1;setSpeed(SET.speed);refreshSel();resize();focusKeep();closeModal();toast(label+' geladen.')};btns.appendChild(b)}
     li.appendChild(btns);ul.appendChild(li);
   }
 }
@@ -338,7 +388,7 @@ function loop(t){
 const saved=loadSave();
 if(saved)resume(saved);
 else startGame(0);
-buildCards();buildRecruits();$('buildIc').src=makeIcon('haus');
+buildCards();buildRecruits();$('buildIc').src=makeIcon('haus');$('advisor').src=makeIcon('berater');
 new ResizeObserver(resize).observe($('stage'));new ResizeObserver(resize).observe($('hud'));resize();
 hud(true);openMenu();
 requestAnimationFrame(loop);

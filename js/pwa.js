@@ -1,4 +1,4 @@
-// Zinnenwerk – Service Worker anmelden und auf neue Versionen hinweisen.
+// Burgwacht – Service Worker anmelden und auf neue Versionen hinweisen.
 (function(){
   if(!('serviceWorker' in navigator)||!location.protocol.startsWith('http'))return;
   let reloading=false;

@@ -37,8 +37,8 @@ try {
   await ctx.setOffline(true);
   await page.reload();
   await page.waitForFunction(() => typeof S !== 'undefined' && S, null, { timeout: 5000 });
-  const fontOk = await page.evaluate(async () => { await document.fonts.ready; return document.fonts.check('16px "Pirata One"'); });
-  if (!fontOk) fail('Schrift Pirata One offline nicht geladen');
+  const fontOk = await page.evaluate(async () => { await document.fonts.ready; return document.fonts.check('700 16px "Cinzel"'); });
+  if (!fontOk) fail('Schrift Cinzel offline nicht geladen');
   if (errors.length) fail('PWA: Konsolenfehler: ' + errors.join(' | '));
   else ok('PWA: Manifest und Icons ok, Service Worker aktiv, ' + shell.length + ' Dateien im Cache, Offline-Start ok');
   await ctx.close();

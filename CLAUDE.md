@@ -1,14 +1,14 @@
 # Hinweise für Claude Code
 
 ## Projekt
-Zinnenwerk ist ein Burgenbau-Strategiespiel (inspiriert von Stronghold, aber mit eigenen Namen, Figuren und Grafik) als statische PWA auf GitHub Pages unter `burg.micana.de`. Eine spätere Portierung nach Unity ist geplant, daher Spielmechanik sauber von Darstellung trennen und in `docs/DESIGN.md` dokumentieren.
+Burgwacht (bis Etappe 4 „Zinnenwerk“) ist ein Burgenbau-Strategiespiel (inspiriert von Stronghold, aber mit eigenen Namen, Figuren und Grafik) als statische PWA auf GitHub Pages unter `burg.micana.de`. Eine spätere Portierung nach Unity ist geplant, daher Spielmechanik sauber von Darstellung trennen und in `docs/DESIGN.md` dokumentieren.
 
 ## Technik
 - Vanilla JavaScript, Canvas 2D, kein Framework, kein Build-Schritt. Alles muss direkt von GitHub Pages laufen.
 - Die Skripte in `js/` sind klassische Skripte und teilen sich den globalen Gültigkeitsbereich (Reihenfolge: data, core, economy, combat, render, ui, pwa). ES-Module wurden bewusst nicht eingeführt: So bleiben die Logikdateien ohne Build in Node (`vm`) ladbar, siehe `tools/sim.mjs`.
 - Spiellogik (`data.js`, `core.js`, `economy.js`, `combat.js`) greift nie auf `document`/`window` zu. Ausgaben laufen über die Rückrufe in `H` (`H.say`, `H.fx`, `H.sfx` …). Regeln und Zahlen stehen in `docs/DESIGN.md` und werden mit jeder Änderung aktualisiert.
 - Keine externen Laufzeit-Abhängigkeiten. Schriften liegen selbst gehostet in `fonts/`. Sound wird mit der Web Audio API erzeugt oder als kleine, selbst erstellte Dateien im Repo abgelegt.
-- Spielstand in `localStorage` (Schlüssel `zinnenwerk-v3`, Kampagnenfortschritt `zinnenwerk-progress`). Bei Formatänderungen eine Migration schreiben, Fortschritt nie verlieren.
+- Spielstand in `localStorage` (Schlüssel `zinnenwerk-v3`, Kampagnenfortschritt `zinnenwerk-progress`; die Schlüssel behalten trotz Umbenennung den alten Namen). Bei Formatänderungen eine Migration schreiben, Fortschritt nie verlieren.
 - Nach jeder Änderung an ausgelieferten Dateien `VERSION` in `sw.js` erhöhen und neue Dateien in `SHELL` aufnehmen.
 
 ## Wichtige Eigenheiten

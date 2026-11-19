@@ -1,4 +1,4 @@
-# Zinnenwerk
+# Burgwacht
 
 Ein Burgenbau-Strategiespiel für Handy und Browser: Wirtschaft aufbauen, das Volk bei Laune halten, durch den Winter kommen und die Burg gegen Räuber, Brandstifter und Rammböcke verteidigen.
 
@@ -12,12 +12,13 @@ Läuft als installierbare PWA (offline spielbar). Auf dem Handy im Browser öffn
 |---|---|
 | `index.html` | Grundgerüst der Seite, lädt CSS, Schriften und Skripte |
 | `css/style.css` | Gesamtes Layout inkl. Hell/Dunkel, Hoch- und Querformat |
-| `fonts/` | Selbst gehostete Schriften (Pirata One, Alegreya Sans) mit OFL-Lizenztexten |
+| `fonts/` | Selbst gehostete Schriften (Cinzel, Fira Sans) mit OFL-Lizenztexten |
 | `js/data.js` | Spieldaten: Gebäude, Feinde, Missionen, Steuern, Rationen |
 | `js/core.js` | Spielzustand, Kartengenerator, Wegfindung, Bauen, Arbeiter, Speichern |
 | `js/economy.js` | Tageslauf: Produktion, Essen, Beliebtheit, Bevölkerung, Ziele |
 | `js/combat.js` | Echtzeit: Angriffswellen, Feinde, Feuer, Wachen |
 | `js/units.js` | Eigene Truppen: Einheiten, Wegfindung über Mauern, Befehle, Kampf |
+| `js/events.js` | Ereignisse (Seuche, Missernte, Wölfe, Blitz, Händler, Turnier, Festtag) und Markt |
 | `js/settings.js` | Einstellungen (Lautstärken, Grafikstufe, Starttempo, Vibration, Tutorial) |
 | `js/audio.js` | Prozedurale Musik und Geräusche (Web Audio API, keine Audiodateien) |
 | `js/render.js` | Canvas-Grafik: Gelände, Gebäude, Figuren, Partikel, Tag/Nacht, Wetter |
@@ -28,7 +29,7 @@ Läuft als installierbare PWA (offline spielbar). Auf dem Handy im Browser öffn
 | `manifest.webmanifest` | PWA-Manifest |
 | `icons/` | App-Icons |
 | `docs/DESIGN.md` | Alle Spielregeln, Zahlen und Formeln (Grundlage für die Unity-Portierung) |
-| `tests/` | Logik-Tests (headless) und Playwright-Tests: Smoke, Tutorial/Spielstände, Truppen, Screenshots |
+| `tests/` | Logik-Tests (headless) und Playwright-Tests: Smoke, Tutorial/Spielstände, Truppen, Welt, Screenshots |
 | `tools/sim.mjs` | Headless-Simulation mit Bot zum Abstimmen der Missionen |
 | `CNAME` | Eigene Domain für GitHub Pages |
 

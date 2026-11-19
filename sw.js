@@ -1,21 +1,23 @@
-// Zinnenwerk – Service Worker: App-Shell offline verfügbar machen.
+// Burgwacht – Service Worker: App-Shell offline verfügbar machen.
 // Bei jeder Änderung an Spieldateien VERSION erhöhen und neue Dateien in SHELL aufnehmen,
 // damit Spieler das Update bekommen. Ein neuer Worker wartet, bis der Spieler „Aktualisieren“ tippt.
-const VERSION = 'zinnenwerk-v5.5.0';
+const VERSION = 'burgwacht-v5.7.2';
 const SHELL = [
   './',
   'index.html',
   'css/style.css',
   'fonts/fonts.css',
-  'fonts/alegreya-sans-400.woff2',
-  'fonts/alegreya-sans-500.woff2',
-  'fonts/alegreya-sans-700.woff2',
-  'fonts/pirata-one-400.woff2',
+  'fonts/fira-sans-400.woff2',
+  'fonts/fira-sans-500.woff2',
+  'fonts/fira-sans-700.woff2',
+  'fonts/cinzel-400.woff2',
+  'fonts/cinzel-700.woff2',
   'js/data.js',
   'js/core.js',
   'js/economy.js',
   'js/combat.js',
   'js/units.js',
+  'js/events.js',
   'js/settings.js',
   'js/audio.js',
   'js/render.js',

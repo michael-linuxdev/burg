@@ -1,4 +1,4 @@
-# Zinnenwerk – Spielregeln und Zahlenwerte
+# Burgwacht – Spielregeln und Zahlenwerte
 
 Dieses Dokument beschreibt die Spielmechanik vollständig und unabhängig von der Darstellung, sodass eine spätere Unity-Portierung danach gebaut werden kann. Maßgeblich ist der Code in `js/data.js`, `js/core.js`, `js/economy.js`, `js/combat.js` und `js/units.js` (keine DOM-Zugriffe). Die Darstellung (`render.js`, `ui.js`) liest den Zustand nur und hängt sich über die Rückrufe in `H` ein.
 
@@ -9,18 +9,28 @@ Dieses Dokument beschreibt die Spielmechanik vollständig und unabhängig von de
 | Ein Spieltag | 4 s Echtzeit bei Tempo 1× (`DAY`) |
 | Tempo | 0 (Pause), 1×, 3× – bei 3× wird der Simulationsschritt dreimal pro Bild ausgeführt |
 | Simulationsschritt | Bildzeit, höchstens 0,05 s |
-| Jahreszeit | 6 Tage (`SLEN`), Reihenfolge Frühling → Sommer → Herbst → Winter |
-| Jahreszeit von Tag d | `floor((d − 1) / 6) mod 4` (0 Frühling … 3 Winter) |
+| Jahreszeit | 10 Tage (`SLEN`, bis Etappe 4: 6), Reihenfolge Frühling → Sommer → Herbst → Winter |
+| Jahreszeit von Tag d | `floor((d − 1) / SLEN) mod 4` (0 Frühling … 3 Winter) |
 | Tag-Nacht-Zyklus | 6 Tage (`CYC`), rein optisch |
 
 Ablauf pro Simulationsschritt (`step(dt)`): Uhr um `dt` erhöhen; jedes Mal, wenn sie `DAY` überschreitet, `dayTick()` ausführen; danach `update(dt)` (Echtzeit: Feinde, Feuer, Wachen, Truppen).
 
 ## 2. Karte
 
-- Raster `COLS × ROWS` (Standard 12 × 20), Feld-Index `i = r · COLS + c`.
-- Gelände: Gras (0, bebaubar), Wald (1), Fels (2), Wasser (3). Nur Gras ist bebaubar und begehbar.
-- Bergfried bei `(KR, KC) = (11, 5)`. Im Umkreis von 2 Feldern um den Bergfried ist immer Gras.
-- Kartengenerator: deterministischer Zufall (Mulberry32) aus dem Missions-Seed; Wald-, Fels- und Wasserflecken („Blobs“) an festen Ankerpunkten mit Zufallsversatz ±0,8. Ein Feld im Radius `rad` um das Zentrum wird mit Wahrscheinlichkeit `den · (1 − d/rad · 0,55)` umgewandelt.
+- Raster `COLS × ROWS`, Feld-Index `i = r · COLS + c`. Kampagne: 12 × 20, Bergfried bei `(KR, KC) = (11, 5)`. Freies Spiel wählbar (`MAPSIZE`): Klein 12 × 20, Mittel 20 × 28, Groß 32 × 40; Bergfried bei `(round(0,55 · ROWS), floor(COLS / 2))`. Eine Mission kann `map: {cols, rows}` setzen.
+- Im Umkreis von 2 Feldern um den Bergfried ist immer Gras.
+
+| Gelände | Wert | begehbar | bebaubar | Besonderheit |
+|---|---|---|---|---|
+| Gras | 0 | ja | ja | |
+| Wald | 1 | nein | nein | Holzfäller im Umkreis 2 |
+| Fels | 2 | nein | nein | Steinbruch direkt daneben |
+| Wasser | 3 | nur mit Brücke | nur Brücke | Teiche und Fluss |
+| Hügel | 4 | ja | ja | Bogenschützen darauf +1 Reichweite (`HILL_RANGE`), auch auf Mauer/Turm |
+| Sumpf | 5 | ja (Feinde und Truppen mit halbem Tempo, `SWAMP_SLOW`) | nein | Wegkosten für Feinde 2 |
+| Eisenvorkommen | 6 | nein | nein | Eisenmine direkt daneben |
+
+- Kartengenerator: deterministischer Zufall (Mulberry32) aus dem Seed. **Klassisch** (12 × 20, `genClassic`): Wald-, Fels- und Wasserflecken („Blobs“) an festen Ankerpunkten mit Zufallsversatz ±0,8, dazu ein Eisenvorkommen am Westfelsen. Ein Feld im Radius `rad` um das Zentrum wird mit Wahrscheinlichkeit `den · (1 − d/rad · 0,55)` umgewandelt. **Weit** (alle anderen Größen, `genWide`): Anzahl der Flecken proportional zur Fläche (`A = N/240`): 4A Hügel, 6A Wälder, 3,2A Felsen, max(2, 1,6A) Eisen, 1,2A Sumpf, eventuell ein Teich – jeweils mit Mindestabstand zum Bergfried. Ab 16 Spalten ein Fluss von oben nach unten, mindestens 4 Spalten neben dem Bergfried, 1–2 Felder breit, mit einer **Furt** (2 Reihen Sumpf) nahe dem oberen oder unteren Rand und Sumpf an den Ufern. Danach prüft eine Breitensuche, ob jede Kartenseite den Bergfried erreicht; sonst wird eine gerade Schneise geschlagen (Wald/Fels → Gras, Wasser → Sumpf).
 - Im Querformat wird die Karte nur transponiert dargestellt; die Logik bleibt gleich. Himmelsrichtungen werden für Meldungen gedreht (Norden ↔ Westen, Süden ↔ Osten).
 
 ## 3. Rohstoffe
@@ -58,7 +68,10 @@ Nach der Tagesproduktion (und nach Abriss eines Lagers oder Rückgängig) wird a
 | `lager` | Lager | 12 Holz | – | +100 Platz je Lager-Rohstoff |
 | `korn` | Kornkammer | 10 Holz, 4 Stein | – | +80 Platz für Brot und Äpfel |
 | `ruest` | Rüstkammer | 8 Holz, 12 Stein | – | +20 Platz je Waffenart |
-| `mine` | Eisenmine | 15 Holz, 5 Stein | 2 | +2 Eisen/Tag; Fels im Umkreis 1 nötig |
+| `mine` | Eisenmine | 15 Holz, 5 Stein | 2 | +2 Eisen/Tag; Eisenvorkommen im Umkreis 1 nötig |
+| `bruecke` | Brücke | 12 Holz | – | nur auf Wasser; macht das Feld begehbar für eigene Leute und Feinde (Engstelle); brennt nicht |
+| `markt` | Markt | 20 Holz, 6 Stein | – | Handel im Hof (siehe Markt) |
+| `apotheke` | Apotheke | 10 Holz, 6 Stein, 25 Gold | 1 | besetzt: beendet eine Seuche am nächsten Tag, verhindert neue zu 70 % |
 | `weide` | Viehweide | 8 Holz | 1 | +2 Häute/Tag, im Winter 1 |
 | `gerber` | Gerberei | 12 Holz | 1 | 2 Häute → 1 Lederrüstung |
 | `bogner` | Bogenmacher | 12 Holz | 1 | 2 Holz → 1 Bogen |
@@ -84,7 +97,8 @@ Reihenfolge:
    **Sold**: danach Summe des Solds aller Einheiten (`UNIT[typ].sold`: Bogenschütze und Speerträger 1, Schwertkämpfer 2, Ritter 3 Gold). Reicht das Gold nicht, wird es auf 0 gesetzt und „Sold nicht bezahlt“ (−3 Beliebtheit) gilt bis zum nächsten bezahlten Tag.
 6. **Beliebtheit** (0–100): `pp += 0,5 · Σ Faktoren`.
 7. **Bevölkerung**: bei pp ≥ 50 Zuzug +1 (bei pp ≥ 75 +2) bis zur Kapazität; bei pp < 50 Wegzug −1 (bei pp < 25 −2), nie unter die Zahl der Truppen. Kapazität = `Grundplätze der Burgstufe + 8 · Hütten` (12 / 20 / 28).
-8. **Angriffsplan** (siehe 7.) und Siegprüfung, dann automatisch speichern.
+8. **Angriffsplan** (siehe 7.).
+9. **Ereignisse** (`eventTick`, siehe unten), dann Siegprüfung und automatisch speichern.
 
 ### Rationen und Steuern
 
@@ -104,9 +118,37 @@ Reihenfolge:
 | Hoch | 1,2 | −7 |
 
 ### Beliebtheitsfaktoren
-Ration (oben), Abwechslung beim Essen (+2 bei ≥ 2 Sorten), Steuer (oben), Kapellen (+2 je Kapelle, max. 3), Sold nicht bezahlt (−3), Angst nach Bränden (−3 für 3 Tage nach einem abgebrannten Gebäude), Kälte ohne Brennholz (−4).
+Ration (oben), Abwechslung beim Essen (+2 bei ≥ 2 Sorten), Steuer (oben), Kapellen (+2 je Kapelle, max. 3), Sold nicht bezahlt (−3), Angst nach Bränden (−3 für 3 Tage nach einem abgebrannten Gebäude), Kälte ohne Brennholz (−4), Seuche (−4, solange sie dauert).
 
 Startwerte: Beliebtheit 60, Steuer „Niedrig“, Ration „Normal“.
+
+### Markt
+Mit mindestens einem Markt lässt sich im Hof handeln, in Paketen zu `TRADE_N` = 5 Stück. Kaufen kostet `ceil(5 · Kaufpreis)`, Verkaufen bringt `floor(5 · Verkaufspreis)` Gold. Gekauftes muss ins Lager passen.
+
+| Ware | Kauf/Stück | Verkauf/Stück | | Ware | Kauf/Stück | Verkauf/Stück |
+|---|---|---|---|---|---|---|
+| Holz | 2 | 1 | | Brot | 2 | 1 |
+| Stein | 3 | 1,5 | | Äpfel | 1,6 | 0,6 |
+| Eisen | 6 | 3 | | Häute | 3 | 1,4 |
+| Weizen | 2 | 1 | | Bögen, Speere | 10 | 5 |
+| Mehl | 3 | 1,5 | | Schwerter | 16 | 8 |
+| | | | | Lederrüstungen | 10 | 5 |
+
+### Ereignisse (`js/events.js`)
+
+Einmal am Tag (nicht in Missionen mit `events: false`, also nicht in Mission 1; erst ab Tag 6): Hat die Abklingzeit (`EVENT_COOL` = 5 Tage nach dem letzten Ereignis) 0 erreicht, tritt mit 12 % (`EVENT_CHANCE`) ein Ereignis ein. Gewählt wird gewichtet unter den Ereignissen, deren Bedingung gerade erfüllt ist.
+
+| Ereignis | Gewicht | Bedingung | Wirkung |
+|---|---|---|---|
+| Seuche | 2 | ≥ 18 Einwohner, keine laufende | `PEST_DAYS` = 5 Tage: jeden Tag −1 Einwohner (nicht unter Truppen + 1), Beliebtheit −4. Eine besetzte Apotheke verhindert sie zu 70 % und beendet sie am nächsten Tag. |
+| Missernte | 2 | nicht im Winter, Höfe oder Obstgärten vorhanden | 6 Tage lang Weizenhof und Obstgarten ×0,5 |
+| Wölfe | 3 | Winter | 2 + floor(Tag/18) Wölfe von einem zufälligen Rand (siehe Feinde); zählen nicht als Welle |
+| Blitzschlag | 2 | Sommer, brennbares Gebäude vorhanden | ein zufälliges brennbares Gebäude fängt Feuer |
+| Händler | 3 | immer | Entscheidung: 10 Stück einer Ware für 75 % des Marktpreises kaufen und/oder 10 Stück einer vorrätigen Ware für 140 % des Verkaufspreises verkaufen |
+| Turnier | 2 | ≥ 60 Gold, ≥ 16 Einwohner | Entscheidung: 50 Gold für +10 Beliebtheit |
+| Festtag | 2 | ≥ 25 Gold | Entscheidung: 20 Gold und 10 Essen (erst Äpfel, dann Brot) für +5 Beliebtheit |
+
+Entscheidungen liegen in `S.ev.pending` und werden über `H.event` gezeigt; `resolveEvent(i)` setzt Option i um (−1 = ablehnen). Eine offene Entscheidung gilt am nächsten Tag als abgelehnt.
 
 ## 6. Feuer
 
@@ -131,6 +173,7 @@ Missionsparameter `raid = {start, every, fire, ram, archer, ladder, scale}`:
 | Räuber | 1 | 1,1 | 3 | 1 |
 | Brandstifter | 0,7 | 1,3 | 2 | 1 |
 | Rammbock | 3,5 | 0,45 | 14 (Bergfried: 10) | 0,34 |
+| Wolf (Ereignis) | 0,6 (Grund-LP 8 + 0,4 · Tag) | 1,7 | 2 | 1 |
 | Feindlicher Bogenschütze | 0,8 | 1,0 | 2 (Fernkampf, Reichweite 3,5) | 1 |
 | Leitermann | 0,9 | 1,1 | 2 | 1 |
 
@@ -205,14 +248,14 @@ Zieltypen: `pop` (Einwohner ≥ n), `brot` (Brot auf Vorrat ≥ n), `raids` (abg
 | 2 | Brot für alle | 3307 | 60 Holz, 20 Äpfel | 14 | 40 Brot | ab Tag 10, alle 9, scale 0,6 |
 | 3 | Steinerne Wacht | 4411 | 50 Holz, 20 Stein, 20 Äpfel, 80 Gold, 4 Bögen | 14 | 3 Wellen | ab 7, alle 6 |
 | 4 | Flammen im Tal | 5519 | 60 Holz, 20 Stein, 20 Äpfel, 100 Gold, 4 Bögen | 16 | 4 Wellen, 50 Beliebtheit | ab 7, alle 6, Brandstifter ab Welle 1, Leitermänner ab Welle 3 |
-| 5 | Die Belagerung | 6623 | 80 Holz, 40 Stein, 10 Brot, 20 Äpfel, 150 Gold, 6 Bögen, 4 Speere | 18 | 5 Wellen | ab 8, alle 5, Brandstifter und Rammböcke ab Welle 2, feindliche Bogenschützen ab Welle 3, scale 1,4 |
+| 5 | Die Belagerung | 6623 | 80 Holz, 40 Stein, 30 Brot, 30 Äpfel, 170 Gold, 6 Bögen, 4 Speere | 18 | 5 Wellen | ab 8, alle 5, Brandstifter und Rammböcke ab Welle 2, feindliche Bogenschützen ab Welle 3, scale 1,4 |
 | – | Freies Spiel | zufällig | Basis + 5 Brot, 3 Bögen | 10 | – | ab 8, alle 7, Brand ab 3, Leiter ab 4, Ramm ab 5, Bogen ab 6 |
 
 ## 9. Speichern
 
 - Automatischer Spielstand: `localStorage['zinnenwerk-auto']`, nach jedem Tag, jeder Welle und beim Laden.
 - Drei feste Plätze: `zinnenwerk-slot-1` … `-3`, im Menü mit Vorschau (Mission, Tag, Jahreszeit, Zeitpunkt).
-- Jeder Stand trägt `ver` (aktuell 4) sowie `cols`, `rows`, `kr`, `kc`. `migrate()` hebt ältere Stände an: Version 1 (Schlüssel `zinnenwerk-v3`) bekommt 12 × 20 / Bergfried (11, 5), Feinde ohne Wellennummer werden der letzten Welle zugeordnet. Version 2 → 3: fehlende Rohstoffe (Eisen, Häute, Waffen) = 0, Burgstufe Holzburg, leeres `spill`. Version 3 → 4: die Zahl `archers` wird zu ebenso vielen Bogenschützen-Einheiten im Bergfried (`units`). Ein alter v3-Stand wird beim ersten Start in den automatischen Spielstand übernommen; der alte Schlüssel bleibt unangetastet.
+- Jeder Stand trägt `ver` (aktuell 5) sowie `cols`, `rows`, `kr`, `kc`. `migrate()` hebt ältere Stände an: Version 1 (Schlüssel `zinnenwerk-v3`) bekommt 12 × 20 / Bergfried (11, 5), Feinde ohne Wellennummer werden der letzten Welle zugeordnet. Version 2 → 3: fehlende Rohstoffe (Eisen, Häute, Waffen) = 0, Burgstufe Holzburg, leeres `spill`. Version 3 → 4: die Zahl `archers` wird zu ebenso vielen Bogenschützen-Einheiten im Bergfried (`units`). Version 4 → 5: Ereigniszustand `ev`; Eisenvorkommen werden nachgetragen, indem die Karte aus dem gespeicherten Seed neu erzeugt wird und ihre Eisenfelder auf freies Gras oder Wald übernommen werden. Ein alter v3-Stand wird beim ersten Start in den automatischen Spielstand übernommen; der alte Schlüssel bleibt unangetastet.
 - Kampagnenfortschritt: `localStorage['zinnenwerk-progress'] = {done: [Missionsindizes]}`. Wird nie gelöscht.
 - Einstellungen: `localStorage['zinnenwerk-settings']` (Lautstärken, Grafikstufe, Starttempo, Vibration, Tutorial).
 - Mission n ist spielbar, wenn n = 0 oder Mission n − 1 geschafft ist.
@@ -231,12 +274,17 @@ Die Logik ruft nur diese Rückrufe auf (`H` in `core.js`):
 | `sfx(name)` | Geräusch abspielen |
 | `shot(x1, y1, x2, y2, feindlich, h1, h2)` | Pfeilflug zeichnen; `h1`/`h2` = Höhe von Schütze und Ziel in Feldern (Mauer, Turm, Bergfried), feindliche Pfeile andersfarbig |
 | `side(s)` | Himmelsrichtung für die Anzeige übersetzen |
+| `event(p)` | Ereignis mit Entscheidung anzeigen (`p.text`, `p.opts`) |
 | `vibrate(muster)` | Vibration |
 | `won()`, `lost()` | Mission gewonnen bzw. Burg gefallen |
 
 Geräuschnamen für `sfx`: `bau`, `stein` (Mauerteil gesetzt), `abriss`, `feuer`, `treffer`, `ramme`, `einsturz`, `glocke` (Angriff), `sieg`, `niederlage`, `klick`. Die Darstellung ergänzt `pfeil`, `holz` und `steinbruch`.
 
-Die Darstellung darf den Zustand nur über die Logik-Funktionen ändern (`act`, `startGame`, Hof-Einstellungen in `S.tax`/`S.ration`, Ausbilden, Befehle `order`/`orderAttack`).
+Die Darstellung darf den Zustand nur über die Logik-Funktionen ändern (`act`, `startGame`, Hof-Einstellungen in `S.tax`/`S.ration`, Ausbilden, Befehle `order`/`orderAttack`, `trade`, `resolveEvent`).
+
+Nacht: Abdunklung höchstens 48 % (einfache Grafikstufe 40 %), Lichtquellen schneiden Lichtkegel heraus. Mauern verbinden sich optisch nicht mit dem Bergfried; der Bergfried wird nach den übrigen Gebäuden seiner Reihe gezeichnet.
+
+Das HUD (Statusleiste) ist reine Darstellung. Hochformat kompakt in drei schmalen Zeilen: Tagesmedaille mit Fortschrittsring und Tempo; Ressourcen-Plaketten als wischbare Zeile (gold umrandet ab 90 % Lagerfüllung, rot bei Verfall); Einwohner, Beliebtheitsleiste, Auftrag (Symbol, Leiste, Zahl) und Angriffs-Plakette. „▾“ klappt alles aus (alle Ressourcen, Zielbeschreibungen, freie Leute). Der Berater sitzt als Porträt unter der Leiste; seine Sprechblase öffnet sich bei jedem neuen Hinweis für 7 s, Antippen öffnet oder schließt sie. Quer und am Desktop steht alles in der 250 px breiten Seitenleiste. Meldungen erscheinen als Banner; Farbe nach Art (Gefahr rot, Erfolg grün).
 
 ## 11. Balancing
 
@@ -289,3 +337,19 @@ Mission 4 bekommt Leitermänner ab Welle 3, Mission 5 feindliche Bogenschützen 
 Änderungen in dieser Etappe und warum:
 - **Gefallene zählen**: Vorher kehrte ein gefallener Soldat stillschweigend als Arbeiter zurück. Jetzt sinkt die Einwohnerzahl. Dadurch fiel Mission 5 auf 40 %: Die Simulation zeigte rund 14 tote Bogenschützen je Partie, fast alle durch feindliche Pfeile auf Mauern und Türmen.
 - **Deckung hinter Zinnen** (Pfeilschaden oben ×0,5, Turm ×0,4): Mauern und Türme schützen ihre Besatzung spürbar, wie man es erwartet. Mission 5 liegt damit bei rund 65 %.
+
+Ergebnis nach Etappe 4 (Welt, Ereignisse, Markt; 20 Läufe, Mission 5 zusätzlich 80 Läufe):
+
+| Mission | Siege | Ø Tage | Ø Gold am Ende | min. Bergfried-LP |
+|---|---|---|---|---|
+| 1 | 100 % | 15 | 125 | 150 |
+| 2 | 100 % | 11 | 140 | 150 |
+| 3 | 100 % | 23 | 32 | 150 |
+| 4 | 90 % | 30 | 219 | 131 |
+| 5 | 75 % (80 Läufe: 66 %) | 39 | 170 | 60 |
+
+Änderungen und warum:
+- **Ereignisse** kosteten Mission 5 rund 8 Prozentpunkte (Seuche, Wölfe). Deshalb seltener (12 % statt 16 %, Abklingzeit 5 Tage) und Mission 5 startet mit 170 statt 150 Gold. Der Bot baut bei einer Seuche eine Apotheke und richtet Feste aus, wenn er mehr als 110 Gold hat und die Beliebtheit unter 62 liegt.
+- **Jahreszeiten 10 statt 6 Tage** (Rückmeldung: Wechsel zu schnell). Der Winter fällt in Mission 5 damit genau in die späten, schweren Angriffe (Bot 35–48 %). Ausgleich: Mission 5 startet mit 30 Brot und 30 Äpfeln (vorher 10 und 20).
+- **Eisenvorkommen** auf den Kampagnenkarten liegt am Westfelsen: An anderen Stellen verdrängte es Bäume und Bauplätze und senkte Mission 5 um rund 10 Prozentpunkte.
+- Freies Spiel auf großen Karten (Bot, 60 Tage, je 4 Karten Mittel/Groß): keine Niederlage, 5–6 abgewehrte Angriffe, 60 Tage in unter 1 s Rechenzeit.

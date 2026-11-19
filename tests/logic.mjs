@@ -43,7 +43,7 @@ t('Burgausbau: Holzburg → Steinburg → Festung', () => {
 t('Migration: Spielstand Version 2 bekommt neue Rohstoffe und Burgstufe', () => {
   const g = fresh(); const o = g.run('(()=>{const o=JSON.parse(JSON.stringify(S));o.ver=2;delete o.keepLv;delete o.res.eisen;delete o.res.bogen;delete o.spill;return o})()');
   g.ctx.__o = o; const m = g.run('migrate(__o)');
-  eq([m.ver, m.keepLv, m.res.eisen, m.res.bogen, typeof m.spill], [4, 0, 0, 0, 'object']);
+  eq([m.ver, m.keepLv, m.res.eisen, m.res.bogen, typeof m.spill], [g.run("SAVE_VER"), 0, 0, 0, 'object']);
 });
 t('Überlappende Wellen zählen einzeln', () => {
   const g = fresh(); g.run('S.raidSide="Norden";spawnWave();S.raidSide="Norden";spawnWave()');
@@ -97,6 +97,63 @@ t('Feindliche Bogenschützen beschießen Truppen auf der Mauer (mit Deckung)', (
 });
 t('Migration: Version 3 mit Bogenschützen wird zu Einheiten', () => {
   const g = fresh(); const o = g.run('(()=>{const o=JSON.parse(JSON.stringify(S));o.ver=3;o.archers=4;delete o.units;return o})()');
-  g.ctx.__o = o; const m = g.run('migrate(__o)'); eq([m.ver, m.units.length, m.units[0].type, m.archers], [4, 4, 'archer', undefined]);
+  g.ctx.__o = o; const m = g.run('migrate(__o)'); eq([m.ver, m.units.length, m.units[0].type, m.archers], [g.run("SAVE_VER"), 4, 'archer', undefined]);
+});
+// ---------- Etappe 4: Welt, Ereignisse, Markt ----------
+const big = (size = 'gross', seed = 4242) => { const g = makeGame(11); g.run(`startGame(-1,{size:'${size}',seed:${seed}})`); return g; };
+t('Große Karte: 32 × 40, Bergfried frei, alle Ränder mit Weg zum Bergfried', () => {
+  const g = big(); eq(g.run('[COLS,ROWS,S.grid.length]'), [32, 40, 1280]); eq(g.run('S.grid[KI].b.type'), 'keep');
+  eq(g.run('S.grid.some(t=>t.t===WATER)&&S.grid.some(t=>t.t===HILL)&&S.grid.some(t=>t.t===SWAMP)&&S.grid.some(t=>t.t===IRON)'), true, 'Fluss, Hügel, Sumpf, Eisen');
+  g.run('ensure()');
+  for (const side of ['r===0', 'r===ROWS-1', 'c===0', 'c===COLS-1']) eq(g.run(`(()=>{for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++)if(${side}&&isFinite(dist[r*COLS+c]))return true;return false})()`), true, side);
+});
+t('Kartengenerator ist reproduzierbar, Kampagnenkarte unverändert bis auf Eisen', () => {
+  const a = big('mittel', 7), b = big('mittel', 7); eq(a.run('S.grid.map(t=>t.t).join("")'), b.run('S.grid.map(t=>t.t).join("")'));
+  const g = fresh(2); eq(g.run('[COLS,ROWS,KR,KC]'), [12, 20, 11, 5]); eq(g.run('S.grid.filter(t=>t.t===IRON).length>0'), true);
+});
+t('Brücke: nur auf Wasser, danach begehbar für Leute und Feinde', () => {
+  const g = big(); const w = g.run('(()=>{for(let i=0;i<N;i++)if(S.grid[i].t===WATER&&!reason("bruecke",i/COLS|0,i%COLS))return i;return -1})()');
+  eq(w >= 0, true); eq(g.run(`reason('bruecke',KR,KC+1)`), 'Brücken gehören aufs Wasser.');
+  g.run('ensure()'); eq(g.run(`isFinite(dist[${w}])`), false);
+  g.run(`S.res.holz=99;act('bruecke',${w}/COLS|0,${w}%COLS,true);ensure()`); eq(g.run(`isFinite(dist[${w}])&&walkT(S.grid[${w}])`), true);
+});
+t('Sumpf: nicht bebaubar, Feinde halb so schnell', () => {
+  const g = big(); const sw = g.run('S.grid.findIndex(t=>t.t===SWAMP)');
+  eq(g.run(`reason('haus',${sw}/COLS|0,${sw}%COLS)`), 'Im Sumpf kann nicht gebaut werden.');
+  const move = onSwamp => { const k = makeGame(3); k.run(`startGame(2);const i=(KR-6)*COLS+KC;S.grid[i].t=${onSwamp ? 'SWAMP' : 'GRASS'};bump();ensure();
+    S.enemies.push({w:1,type:'raider',r:KR-6,c:KC,x:KC+.5,y:KR-5.5,tr:KR-5,tc:KC,hp:99,max:99,cd:0,ign:1,wait:0,atk:null,ang:0,climb:0});S.raids=1;update(.2)`); return k.run('KR-5.5-S.enemies[0].y'); };
+  eq(Math.round(move(true) / move(false) * 100) / 100, 0.5);
+});
+t('Hügel: Bogenschützen schießen 1 Feld weiter', () => {
+  const g = fresh(); troops(g, ['archer']); g.run('order([S.units[0]],(KR+2)*COLS+KC+2)'); settle(g);
+  const r0 = g.run('unitRange(S.units[0])'); g.run('S.grid[S.units[0].i].t=HILL'); eq(g.run('unitRange(S.units[0])'), r0 + 1);
+});
+t('Eisenmine nur am Eisenvorkommen', () => {
+  const g = fresh(); eq(g.run('(()=>{for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){const t=T(r,c);if(t.t===GRASS&&!t.b&&DIRS.some(([a,b])=>inb(r+a,c+b)&&T(r+a,c+b).t===ROCK)&&!DIRS.some(([a,b])=>inb(r+a,c+b)&&T(r+a,c+b).t===IRON))return reason("mine",r,c)}})()'),
+    'Eisenminen müssen direkt an einem Eisenvorkommen stehen.');
+  eq(g.run('(()=>{for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++)if(!reason("mine",r,c))return true;return false})()'), true);
+});
+t('Markt: kaufen und verkaufen in Paketen, Lagergrenze gilt', () => {
+  const g = fresh(); eq(g.run("trade('holz',-1)"), 'Erst einen Markt bauen'); place(g, 'markt');
+  g.run('S.res.gold=100;S.res.stein=0'); eq(g.run("trade('stein',1)"), ''); eq(g.run('[S.res.stein,S.res.gold]'), [5, 100 - 15]);
+  eq(g.run("trade('stein',-1)"), ''); eq(g.run('[S.res.stein,S.res.gold]'), [0, 85 + 7]);
+  g.run('S.res.holz=storeCap("lager")'); eq(g.run("trade('holz',1)").startsWith('Kein Platz'), true);
+});
+t('Ereignisse: Seuche kostet Leute, Apotheke heilt', () => {
+  const g = fresh(); g.run('S.pop=30;assignWorkers();triggerEvent("pest")'); eq(g.run('S.ev.pest'), g.run('PEST_DAYS'));
+  g.run('eventTick()'); eq(g.run('S.pop'), 29); place(g, 'apotheke'); g.run('assignWorkers();eventTick()'); eq(g.run('[S.ev.pest,S.pop]'), [0, 29]);
+});
+t('Ereignisse: Missernte halbiert Höfe, Entscheidung Turnier', () => {
+  const g = fresh(); g.run('S.ev.harvest=3'); eq(g.run("prodMult('farm',1)"), 0.5); eq(g.run("prodMult('obst',2)"), 1);
+  g.run('S.res.gold=100;S.pop=20;S.pp=50;triggerEvent("tourney")'); eq(g.run('S.ev.pending.id'), 'tourney');
+  eq(g.run('resolveEvent(0)'), ''); eq(g.run('[S.res.gold,S.pp,S.ev.pending]'), [50, 60, null]);
+  g.run('S.res.gold=10;triggerEvent("tourney")'); eq(g.run('resolveEvent(0)'), 'Nicht genug Gold'); g.run('dayTick()'); eq(g.run('S.ev.pending'), null, 'offene Entscheidung verfällt');
+});
+t('Wölfe zählen nicht als Angriffswelle', () => {
+  const g = fresh(); g.run('spawnWolves(2)'); eq(g.run('S.enemies.length'), 2); g.run('for(const e of S.enemies)e.hp=0;update(.01)'); eq(g.run('S.repelled'), 0);
+});
+t('Migration: Version 4 bekommt Eisen und Ereignisse', () => {
+  const g = fresh(); const o = g.run('(()=>{const o=JSON.parse(JSON.stringify(S));o.ver=4;delete o.ev;o.grid.forEach(t=>{if(t.t===IRON)t.t=GRASS});return o})()');
+  g.ctx.__o = o; const m = g.run('migrate(__o)'); eq([m.ver, typeof m.ev, m.grid.some(t => t.t === 6)], [g.run('SAVE_VER'), 'object', true]);
 });
 if (failed) { console.error(`✗ ${failed} Logik-Test(s) fehlgeschlagen`); process.exitCode = 1; } else console.log('Logik-Tests bestanden');
