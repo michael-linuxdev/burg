@@ -10,8 +10,13 @@ function plog(kind,text){
   if(!SET.playlog||PL.quiet)return;
   PL.buf.push([Date.now(),S?S.day:0,kind,String(text)]);
   if(PL.buf.length>PLOG_MAX)PL.buf.splice(0,PL.buf.length-PLOG_MAX);
-  clearTimeout(PL.saveT);PL.saveT=setTimeout(()=>store.set(PLOG_KEY,JSON.stringify(PL.buf)),800);
+  // spätestens alle 3 s sofort speichern, sonst gebündelt nach 0,8 s
+  clearTimeout(PL.saveT);if(Date.now()-(PL.savedAt||0)>3000)plFlush();else PL.saveT=setTimeout(plFlush,800);
 }
+function plFlush(){clearTimeout(PL.saveT);PL.savedAt=Date.now();store.set(PLOG_KEY,JSON.stringify(PL.buf))}
+// iOS beendet Apps im Hintergrund ohne Vorwarnung: beim Verlassen sofort speichern
+document.addEventListener('visibilitychange',()=>{if(document.hidden){plog('sitzung','App im Hintergrund');plFlush()}else plog('sitzung','App wieder im Vordergrund')});
+window.addEventListener('pagehide',plFlush);
 const plMission=()=>S?(S.mi===CUSTOM?'Eigene Karte „'+S.custom.n+'“':S.mi<0?'Freies Spiel ('+COLS+'×'+ROWS+')':'Mission '+(S.mi+1)+' „'+MISSIONS[S.mi].n+'“'):'–';
 const plTile=(r,c)=>'('+r+','+c+')';
 const plRes=()=>['holz','stein','gold','brot','aepfel','eisen','bogen','speer','schwert'].map(k=>RICON[k]+Math.floor(S.res[k])).join(' ');
@@ -41,13 +46,13 @@ plWrap('dayTick',()=>{if(!S||S.edit)return;plog('tag','Tag '+S.day+': 👥'+S.po
 window.addEventListener('error',e=>plog('fehler','Fehler: '+e.message+' ('+(e.filename||'').split('/').pop()+':'+e.lineno+')'));
 window.addEventListener('unhandledrejection',e=>plog('fehler','Fehler (Promise): '+(e.reason&&e.reason.message||e.reason)));
 (function fps(){PL.fpsN++;const n=performance.now();if(n-PL.fpsT>=15000){if(S&&!uiPause&&speed>0&&!S.edit)plog('fps','Bildrate: '+Math.round(PL.fpsN*1000/(n-PL.fpsT))+' fps · Grafik '+SET.quality+' · '+(TRANS?'quer':'hoch'));PL.fpsN=0;PL.fpsT=n}requestAnimationFrame(fps)})();
-plog('sitzung','Sitzung: '+new Date().toLocaleString('de-DE')+' · '+innerWidth+'×'+innerHeight+' @'+(devicePixelRatio||1)+' · '+navigator.userAgent);
+plog('sitzung','Sitzung: '+new Date().toLocaleString('de-DE')+' · Grafik '+SET.quality+', '+(SET.fps||60)+' fps · '+innerWidth+'×'+innerHeight+' @'+(devicePixelRatio||1)+' · '+navigator.userAgent);
 // ---------- Ansicht ----------
 const fmtT=ts=>new Date(ts).toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
 const plText=list=>list.map(([ts,d,k,m])=>'['+fmtT(ts)+'] T'+d+' '+k.padEnd(8)+' '+m).join('\n');
 function openPlaylog(){
   const n=PL.buf.length;
-  modal('Spielprotokoll','<p class="tip">'+n+' Einträge, nur auf diesem Gerät gespeichert. Für Rückmeldungen: als Datei speichern oder kopieren und weitergeben.</p><pre id="plogView"></pre>',[
+  modal('Spielprotokoll','<p class="tip">'+n+' Einträge'+(n?' seit '+new Date(PL.buf[0][0]).toLocaleString('de-DE',{day:'numeric',month:'numeric',hour:'2-digit',minute:'2-digit'}):'')+', nur auf diesem Gerät gespeichert. Für Rückmeldungen: als Datei speichern oder kopieren und weitergeben.</p><pre id="plogView"></pre>',[
     {t:'📝 Notiz',f:plNote},{t:'Als Datei',p:1,f:plExport},{t:'Kopieren',f:plCopy},{t:'Leeren',f:plClear},{t:'Zurück',f:openMenu}]);
   $('plogView').textContent=n?plText(PL.buf.slice(-300)):'Noch keine Einträge.';$('plogView').scrollTop=1e9;
 }
@@ -63,3 +68,5 @@ function plNote(){
 }
 $('openPlaylog').onclick=openPlaylog;
 $('setLog').checked=SET.playlog;$('setLog').onchange=e=>{SET.playlog=e.target.checked;saveSettings();if(SET.playlog)plog('sitzung','Protokoll eingeschaltet')};
+// Version aus dem Cache des Service Workers (z. B. burgwacht-v6.1.1) ins Protokoll
+try{caches.keys().then(k=>{const v=k.filter(x=>/^burgwacht-v/.test(x));if(v.length)plog('sitzung','Version: '+v.join(', '))}).catch(()=>{})}catch(e){}
