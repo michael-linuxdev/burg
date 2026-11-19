@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Zinnenwerk</title>
+<meta name="description" content="Baue, versorge und verteidige deine Burg. Ein Burgenbau-Strategiespiel für Handy und Browser.">
+<meta name="theme-color" content="#1F4E79">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Zinnenwerk">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Alegreya+Sans:wght@400;500;700&family=Pirata+One&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="stage">
+  <canvas id="cv" aria-label="Spielkarte"></canvas>
+  <div id="hud" class="glass">
+    <div class="r1">
+      <button id="menuBtn" aria-label="Menü">☰</button>
+      <div id="when"><span id="day">Tag 1</span><span id="season"></span><span id="clock"></span></div>
+      <div class="speed" role="group" aria-label="Spieltempo">
+        <button data-s="0" aria-pressed="false" aria-label="Pause">II</button>
+        <button data-s="1" aria-pressed="true">1×</button>
+        <button data-s="3" aria-pressed="false">3×</button>
+      </div>
+    </div>
+    <div id="res"></div>
+    <div id="status">
+      <span id="popl">👥</span>
+      <span class="pp">❤️ <span id="ppn">60</span><span class="ppbar"><i id="ppb"></i></span><span id="trend"></span></span>
+      <span id="raid"></span>
+    </div>
+    <div id="dayprog"><i></i></div>
+    <div id="goal"></div>
+    <div id="hint" aria-live="polite"></div>
+  </div>
+  <div id="toast" role="status"></div>
+  <div id="dock">
+    <button class="fab glass" id="openBuild"><img id="buildIc" alt="">Bauen</button>
+    <button class="fab glass" id="openCourt"><span aria-hidden="true">👑</span>Hof</button>
+    <div id="toolbar" class="glass">
+      <div class="ti" id="tIcon"></div>
+      <div class="tt" id="tText"></div>
+      <button class="btn primary" id="tDone">Fertig</button>
+    </div>
+  </div>
+  <div class="sheetwrap" id="buildWrap"><div class="bsheet" role="dialog" aria-label="Bauen">
+    <div class="grab"></div>
+    <div class="shead"><h2>Bauen</h2><button class="close" data-close>Schließen</button></div>
+    <div id="cards"></div>
+  </div></div>
+  <div class="sheetwrap" id="courtWrap"><div class="bsheet" id="courtSheet" role="dialog" aria-label="Hof">
+    <div class="grab"></div>
+    <div class="shead"><h2>Hof</h2><button class="close" data-close>Schließen</button></div>
+    <h3>Steuern</h3><div class="seg" id="taxseg"></div><div class="sub" id="taxsub"></div>
+    <h3>Rationen</h3><div class="seg" id="ratseg"></div><div class="sub" id="ratsub"></div>
+    <h3>Beliebtheit pro Tag</h3><ul id="factors"></ul>
+    <h3>Jahreszeit</h3><div class="sub" id="seasub"></div>
+    <h3>Verteidigung</h3><div class="sub" id="armysub"></div>
+    <div class="row"><button class="btn" id="recruit">Bogenschütze ausbilden (12 💰)</button></div>
+  </div></div>
+</div>
+
+<div class="screen" id="menu"><div class="sheet">
+  <h2 class="title">Zinnenwerk</h2>
+  <p>Baue ein Dorf, bring es durch den Winter und verteidige die Burg gegen Räuber, Brandstifter und Rammböcke.</p>
+  <div class="row" id="contRow"><button class="btn primary" id="cont">Weiterspielen</button></div>
+  <h3>Kampagne</h3>
+  <ol id="mlist"></ol>
+  <h3>Endlos</h3>
+  <button class="btn" id="free">Freies Spiel auf zufälliger Karte</button>
+  <p class="tip" style="margin-top:14px">Mit zwei Fingern zoomen und verschieben. Ohne gewähltes Gebäude reicht ein Finger zum Verschieben.</p>
+</div></div>
+
+<div class="screen" id="modal"><div class="sheet">
+  <h2 class="title" id="mTitle"></h2>
+  <div id="mBody"></div>
+  <div class="row" id="mBtns"></div>
+</div></div>
+
+<script src="js/game.js"></script>
+<script src="js/render.js"></script>
+<script src="js/ui.js"></script>
+<script>
+if('serviceWorker' in navigator&&location.protocol.startsWith('http')){
+  window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
+}
+</script>
+</body>
+</html>
