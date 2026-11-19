@@ -10,7 +10,9 @@ function resize(){
   if(TRANS){const h=$('hud').getBoundingClientRect(),sr=$('stage').getBoundingClientRect();padL=h.right-sr.left+10;padR=10;padT=10;padB=10}
   else{padL=0;padR=0;padT=$('hud').offsetHeight+14;padB=$('dock').offsetHeight+20}
   const nb=Math.max(8,Math.min((vw-padL-padR)/scN(),(vh-padT-padB)/srN()));
-  if(flip||Math.abs(nb-baseCell)>.01||!wasW){baseCell=nb;terrKey='';cell=baseCell*zoom;ox=padL+((vw-padL-padR)-scN()*cell)/2;oy=padT+((vh-padT-padB)-srN()*cell)/2}
+  if(flip||!wasW){baseCell=nb;terrKey='';cell=baseCell*zoom;ox=padL+((vw-padL-padR)-scN()*cell)/2;oy=padT+((vh-padT-padB)-srN()*cell)/2}
+  else if(Math.abs(nb-baseCell)>.01){// Platz geändert (z. B. Werkzeugleiste): Feldgröße und Bildmitte beibehalten
+    const wx=(vw/2-ox)/cell,wy=(vh/2-oy)/cell,keep=cell;baseCell=nb;terrKey='';zoom=Math.max(1,Math.min(maxZoom(),keep/baseCell));cell=baseCell*zoom;ox=vw/2-wx*cell;oy=vh/2-wy*cell}
   else cell=baseCell*zoom;
   clampCam();if(refocus&&S)focusKeep();
 }
