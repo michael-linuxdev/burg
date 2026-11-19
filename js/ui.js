@@ -2,7 +2,7 @@
 // ---------- Kamera ----------
 let zoom=1,baseCell=30,vw=0,vh=0,padT=0,padB=0,padL=0,padR=0;
 function resize(){
-  const r=$('stage').getBoundingClientRect();dpr=window.devicePixelRatio||1;
+  const r=$('stage').getBoundingClientRect();dpr=Math.min(window.devicePixelRatio||1,Q().dpr);
   const wasW=vw,land=r.width>r.height*1.1,flip=land!==TRANS;
   if(flip){TRANS=land;document.body.classList.toggle('land',land);zoom=1;terrKey='';weather=[];parts=[]}
   vw=r.width;vh=r.height;cv.width=Math.round(vw*dpr);cv.height=Math.round(vh*dpr);
@@ -24,7 +24,7 @@ function zoomAt(px,py,z){z=Math.max(1,Math.min(3,z));const wx=(px-ox)/cell,wy=(p
 const tq=[];let tBusy=false;
 function toast(m){if(tq.length&&tq[tq.length-1]===m)return;tq.push(m);if(tq.length>4)tq.shift();if(!tBusy)nextToast()}
 H.say=toast;
-H.vibrate=p=>{try{navigator.vibrate&&navigator.vibrate(p)}catch(e){}};
+H.vibrate=p=>{if(!SET.vibrate)return;try{navigator.vibrate&&navigator.vibrate(p)}catch(e){}};
 function nextToast(){const el=$('toast');if(!tq.length){tBusy=false;el.classList.remove('show');return}tBusy=true;el.textContent=tq.shift();el.classList.add('show');setTimeout(()=>{el.classList.remove('show');setTimeout(nextToast,220)},2400)}
 const GROUPS=[['Wohnen und Glaube',['haus','kapelle','brunnen']],['Nahrung',['obst','farm','muehle','baecker']],['Rohstoffe',['holzf','stein']],['Burg',['mauer','tor','turm','kaserne']],['Werkzeug',['abriss']]];
 function buildCards(){
@@ -50,8 +50,9 @@ function closeSheets(){document.querySelectorAll('.sheetwrap').forEach(w=>w.clas
 document.querySelectorAll('.sheetwrap').forEach(w=>w.addEventListener('click',e=>{if(e.target===w||e.target.hasAttribute('data-close'))closeSheets()}));
 $('openBuild').onclick=()=>openSheet('buildWrap');$('openCourt').onclick=()=>openSheet('courtWrap');
 $('tDone').onclick=()=>{sel=null;refreshSel()};
+$('tUndo').onclick=()=>{const n=undo();toast(n?(n===1?'Rückgängig gemacht.':n+' Bauteile zurückgenommen.'):'Nichts mehr rückgängig zu machen.');hud(true)};
 const segBtns={};
-function makeSeg(id,list,set){const el=$(id);segBtns[id]=list.map((o,i)=>{const b=document.createElement('button');b.textContent=o.n;b.onclick=()=>{set(i);court()};el.appendChild(b);return b})}
+function makeSeg(id,list,set){const el=$(id);segBtns[id]=list.map((o,i)=>{const b=document.createElement('button');b.textContent=o.n;b.onclick=()=>{set(i);if(id==='taxseg'||id==='ratseg')court()};el.appendChild(b);return b})}
 makeSeg('taxseg',TAX,i=>S.tax=i);makeSeg('ratseg',RAT,i=>S.ration=i);
 function court(){
   segBtns.taxseg.forEach((b,i)=>b.setAttribute('aria-pressed',S.tax===i?'true':'false'));
@@ -66,15 +67,16 @@ function court(){
   $('seasub').textContent=SEAS[sea][0]+' '+SEAS[sea][1]+', noch '+left+(left===1?' Tag. ':' Tage. ')+
     (sea===3?'Felder und Obstgärten ruhen. Deine Leute verbrennen '+Math.ceil(S.pop/10)+' Holz pro Tag.':sea===2?'Obstgärten tragen doppelt. Danach kommt der Winter.':'Alle Höfe arbeiten normal.');
   const k=count('kaserne')>0;
-  $('armysub').textContent='Bogenschützen: '+S.archers+'. Zwei Wachen im Bergfried schießen immer mit. Türme fassen je 3 Schützen.';
-  const rb=$('recruit');rb.disabled=!k||S.idle<1||S.res.gold<12;
-  rb.textContent=!k?'Erst eine Kaserne bauen':S.idle<1?'Keine freien Leute':'Bogenschütze ausbilden (12 💰)';
+  $('armysub').textContent='Bogenschützen: '+S.archers+(S.archers?' (Sold '+Math.ceil(S.archers*SOLD)+' 💰 pro Tag)':'')+'. Zwei Wachen im Bergfried schießen immer mit. Türme fassen je 3 Schützen.';
+  const rb=$('recruit'),why=recruitWhy();rb.disabled=!!why&&why!=='Nicht genug Gold'||S.res.gold<ARCHER_GOLD;
+  rb.textContent=why&&why!=='Nicht genug Gold'?why:'Bogenschütze ausbilden ('+ARCHER_GOLD+' 💰)';
 }
 function hint(){
   if(sel)return B[sel].drag?'Mit dem Finger über die Felder ziehen. Mit zwei Fingern verschieben.':'Tippe auf ein helles Feld. Ein Finger verschiebt die Karte.';
   if(S.grid.some(t=>t.b&&t.b.burn))return 'Es brennt! Tippe auf brennende Gebäude, um sie für 2 💰 zu löschen.';
   const sea=seasonOf(S.day),left=SLEN-((S.day-1)%SLEN);
   if(sea===3&&S.cold)return 'Deine Leute frieren. Holzfäller liefern Brennholz.';
+  if(S.unpaid)return 'Der Sold für die Bogenschützen fehlt. Erhöhe die Steuern oder bilde vorerst keine weiteren Schützen aus.';
   if(!count('holzf'))return 'Tippe auf „Bauen“ und setze einen Holzfäller an den Waldrand.';
   if(!count('obst')&&!count('farm'))return 'Baue einen Obstgarten, damit niemand hungert.';
   const cut=S.grid.filter(t=>t.b&&t.b.cut).length;if(cut)return cut+' Gebäude sind abgeschnitten (graues Zeichen). Baue ein Tor in die Mauer.';
@@ -111,6 +113,7 @@ function hud(force){
   if(m.goals.length)$('goal').innerHTML='Ziel: '+goalState().map(g=>`<span class="${g.ok?'done':''}">${GOALTXT[g.t][0]} ${Math.min(g.v,g.n)}/${g.n} ${GOALTXT[g.t][1]}</span>`).join(', ');
   else $('goal').textContent='Freies Spiel: '+S.repelled+(S.repelled===1?' Angriff':' Angriffe')+' abgewehrt';
   $('hint').textContent=hint();
+  $('tUndo').disabled=!canUndo();
   if($('courtWrap').classList.contains('open'))court();
   if($('buildWrap').classList.contains('open'))updateCards();
 }
@@ -135,10 +138,10 @@ const loc=e=>{const r=cv.getBoundingClientRect();return{x:e.clientX-r.left,y:e.c
 const tileAtP=p=>{const sc=Math.floor((p.x-ox)/cell),sr=Math.floor((p.y-oy)/cell),r=TRANS?sc:sr,c=TRANS?sr:sc;return inb(r,c)?[r,c]:null};
 cv.addEventListener('pointerdown',e=>{
   if(!S||uiPause)return;cv.setPointerCapture(e.pointerId);const p=loc(e);ptrs.set(e.pointerId,p);
-  if(ptrs.size===2){const[a,b]=[...ptrs.values()];gest={mode:'pinch',d0:Math.hypot(a.x-b.x,a.y-b.y)||1,z0:zoom,mx:(a.x+b.x)/2,my:(a.y+b.y)/2};return}
+  if(ptrs.size===2){if(gest&&gest.mode==='paint')undoEnd();const[a,b]=[...ptrs.values()];gest={mode:'pinch',d0:Math.hypot(a.x-b.x,a.y-b.y)||1,z0:zoom,mx:(a.x+b.x)/2,my:(a.y+b.y)/2};return}
   if(ptrs.size>2)return;
   gest={mode:'pending',sx:p.x,sy:p.y,ox0:ox,oy0:oy,last:''};
-  if(sel&&B[sel].drag&&!S.over&&!S.won){gest.mode='paint';paint(p,true)}
+  if(sel&&B[sel].drag&&!S.over&&!S.won){gest.mode='paint';undoBegin();paint(p,true)}
 });
 cv.addEventListener('pointermove',e=>{
   if(!ptrs.has(e.pointerId))return;const p=loc(e);ptrs.set(e.pointerId,p);if(!gest)return;
@@ -153,14 +156,15 @@ const endPtr=e=>{
   if(!ptrs.has(e.pointerId))return;const p=ptrs.get(e.pointerId);ptrs.delete(e.pointerId);
   if(gest&&gest.mode==='pending'&&e.type==='pointerup')tap(p);
   if(ptrs.size===1&&gest&&gest.mode==='pinch'){const q=[...ptrs.values()][0];gest={mode:'pan',sx:q.x,sy:q.y,ox0:ox,oy0:oy}}
-  else if(!ptrs.size){gest=null;if(S)hud(true)}
+  else if(!ptrs.size){if(gest&&gest.mode==='paint')undoEnd();gest=null;if(S)hud(true)}
 };
 cv.addEventListener('pointerup',endPtr);cv.addEventListener('pointercancel',endPtr);
 cv.addEventListener('wheel',e=>{e.preventDefault();const p=loc(e);zoomAt(p.x,p.y,zoom*Math.exp(-e.deltaY*.0015))},{passive:false});
-function paint(p,first){const t=tileAtP(p);if(!t)return;const k=t.join(',');if(k===gest.last)return;gest.last=k;act(sel,t[0],t[1],!first);hud(true)}
-function tap(p){if(S.over||S.won)return;const t=tileAtP(p);if(!t)return;if(!sel)info(t[0],t[1]);else{act(sel,t[0],t[1],false);hud(true)}}
-document.querySelectorAll('.speed button').forEach(b=>b.onclick=()=>{speed=+b.dataset.s;document.querySelectorAll('.speed button').forEach(x=>x.setAttribute('aria-pressed',x===b?'true':'false'))});
-$('recruit').onclick=()=>{if(S.idle<1||S.res.gold<12||!count('kaserne'))return;S.res.gold-=12;S.archers++;assignWorkers();toast('Ein Bogenschütze steht bereit.');court();hud(true)};
+function paint(p,first){const t=tileAtP(p);if(!t)return;const k=t.join(',');if(k===gest.last)return;gest.last=k;record(act(sel,t[0],t[1],!first));hud(true)}
+function tap(p){if(S.over||S.won)return;const t=tileAtP(p);if(!t)return;if(!sel)info(t[0],t[1]);else{record(act(sel,t[0],t[1],false));hud(true)}}
+function setSpeed(v){speed=v;document.querySelectorAll('.speed button').forEach(x=>x.setAttribute('aria-pressed',+x.dataset.s===v?'true':'false'))}
+document.querySelectorAll('.speed button').forEach(b=>b.onclick=()=>setSpeed(+b.dataset.s));
+$('recruit').onclick=()=>{const why=recruit();toast(why?why+'.':'Ein Bogenschütze steht bereit.');court();hud(true)};
 
 // ---------- Menü & Dialoge ----------
 function modal(title,html,btns){
@@ -168,7 +172,7 @@ function modal(title,html,btns){
   btns.forEach(b=>{const el=document.createElement('button');el.className='btn'+(b.p?' primary':'');el.textContent=b.t;el.onclick=b.f;row.appendChild(el)});
   $('modal').style.display='flex';uiPause=true;closeSheets();
 }
-function closeModal(){$('modal').style.display='none';$('menu').style.display='none';uiPause=false;if(S)hud(true)}
+function closeModal(){$('modal').style.display='none';$('menu').style.display='none';uiPause=false;if(S)hud(true);if(typeof tutTick==='function')tutTick()}
 function brief(mi){
   const m=mi<0?FREE:MISSIONS[mi];
   const goals=m.goals.length?'<ul class="goals">'+m.goals.map(([t,n])=>'<li>'+GOALTXT[t][0]+' '+n+' '+GOALTXT[t][1]+'</li>').join('')+'</ul>':'';
@@ -176,7 +180,7 @@ function brief(mi){
   modal((mi<0?'':'Mission '+(mi+1)+': ')+m.n,'<p>'+m.s+'</p>'+goals+'<p class="tip">Alle 6 Tage wechselt die Jahreszeit. Im Winter ruhen Felder und Obstgärten.</p>',
     [{t:'Los geht’s',p:1,f:()=>{newGame(mi);closeModal();toast(mi<0?'Die ersten Feinde kommen an Tag 8.':'Viel Erfolg!')}},{t:'Zurück',f:openMenu}]);
 }
-function newGame(mi){startGame(mi);resetView();zoom=1;refreshSel();resize()}
+function newGame(mi){startGame(mi);resetView();zoom=1;setSpeed(SET.speed);refreshSel();resize();if(typeof tutMaybeStart==='function')tutMaybeStart()}
 H.won=()=>{
   const next=S.mi+1<MISSIONS.length?S.mi+1:null;
   modal('Mission geschafft','<p>„'+mission().n+'“ ist abgeschlossen. Deine Burg steht nach '+S.day+' Tagen stolzer da als je zuvor.</p>'+(next==null?'<p>Das war die letzte Mission. Im freien Spiel kannst du weiterbauen.</p>':''),
@@ -196,9 +200,52 @@ function openMenu(){
     const li=document.createElement('li'),b=document.createElement('button');b.disabled=!open;
     b.innerHTML=`<span class="no">${i+1}</span><span><span class="mt">${m.n}</span><span class="ms">${m.goals.map(([t,n])=>GOALTXT[t][0]+' '+n).join('  ')}</span></span><span class="st">${done?'✓ geschafft':open?'':'🔒'}</span>`;
     b.onclick=()=>brief(i);li.appendChild(b);ol.appendChild(li)});
+  renderSlots();
   $('menu').style.display='flex';
 }
 $('cont').onclick=closeModal;$('free').onclick=()=>brief(-1);$('menuBtn').onclick=openMenu;
+
+// ---------- Spielstände ----------
+const fmtWhen=ts=>{if(!ts)return '';const d=new Date(ts),t=new Date();const hm=d.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'});
+  return d.toDateString()===t.toDateString()?'heute, '+hm:d.toLocaleDateString('de-DE',{day:'numeric',month:'numeric'})+', '+hm};
+function renderSlots(){
+  const ul=$('slots');ul.innerHTML='';const running=S&&!S.over&&!S.won;
+  const rows=[['auto','Automatisch',AUTO],[1,'Platz 1',SLOT+1],[2,'Platz 2',SLOT+2],[3,'Platz 3',SLOT+3]];
+  for(const[id,label,key]of rows){
+    const o=readSave(key),pv=savePreview(o),li=document.createElement('li');
+    li.innerHTML=`<div class="sl"><b>${label}</b><span>${pv?pv.name+' · Tag '+pv.day+' · '+pv.season:'leer'}</span>${pv&&pv.saved?`<small>${fmtWhen(pv.saved)}</small>`:''}</div>`;
+    const btns=document.createElement('div');btns.className='sb';
+    if(id!=='auto'&&running){const b=document.createElement('button');b.className='btn';b.textContent='Speichern';
+      b.onclick=()=>{if(o&&!b.dataset.sure){b.dataset.sure=1;b.textContent='Überschreiben?';return}saveSlot(id);toast('Gespeichert in '+label+'.');renderSlots()};btns.appendChild(b)}
+    if(o){const b=document.createElement('button');b.className='btn primary';b.textContent='Laden';
+      b.onclick=()=>{const fresh=readSave(key);if(!fresh)return;resume(fresh);save();resetView();zoom=1;setSpeed(SET.speed);refreshSel();resize();closeModal();toast(label+' geladen.')};btns.appendChild(b)}
+    li.appendChild(btns);ul.appendChild(li);
+  }
+}
+
+// ---------- Einstellungen ----------
+function openSettings(){
+  $('volMusic').value=Math.round(SET.music*100);$('volSfx').value=Math.round(SET.sfx*100);
+  $('setVib').checked=SET.vibrate;$('setTut').checked=SET.tutorial;
+  segBtns.qualseg.forEach((b,i)=>b.setAttribute('aria-pressed',Object.keys(QUALITY)[i]===SET.quality?'true':'false'));
+  segBtns.speedseg.forEach((b,i)=>b.setAttribute('aria-pressed',[1,3][i]===SET.speed?'true':'false'));
+  $('qualsub').textContent=SET.quality==='niedrig'?'Weniger Partikel und Wetter, einfaches Nachtlicht, geringere Auflösung. Für ältere Handys.':SET.quality==='mittel'?'Weniger Partikel und Wetter, Lichtkegel ohne Leuchten.':'Alle Effekte.';
+  $('menu').style.display='none';$('settings').style.display='flex';
+}
+makeSeg('qualseg',Object.values(QUALITY),i=>{SET.quality=Object.keys(QUALITY)[i];saveSettings();terrKey='';resize();openSettings()});
+makeSeg('speedseg',[{n:'1×'},{n:'3×'}],i=>{SET.speed=[1,3][i];saveSettings();openSettings()});
+$('volMusic').oninput=e=>{SET.music=e.target.value/100;AU.setVolume('music',SET.music);saveSettings()};
+$('volSfx').oninput=e=>{SET.sfx=e.target.value/100;AU.setVolume('sfx',SET.sfx);saveSettings()};
+$('volSfx').onchange=()=>AU.play('bau');
+$('setVib').onchange=e=>{SET.vibrate=e.target.checked;saveSettings();if(SET.vibrate)H.vibrate(40)};
+$('setTut').onchange=e=>{SET.tutorial=e.target.checked;if(SET.tutorial)SET.tutDone=false;saveSettings()};
+$('setClose').onclick=()=>{$('settings').style.display='none';openMenu()};
+$('openSettings').onclick=openSettings;
+$('tutAgain').onclick=()=>{SET.tutorial=true;SET.tutDone=false;saveSettings();$('settings').style.display='none';brief(0)};
+AU.setVolume('music',SET.music);AU.setVolume('sfx',SET.sfx);
+// Klang erst nach der ersten Berührung starten (Browser-Regel)
+['pointerdown','keydown'].forEach(ev=>window.addEventListener(ev,()=>AU.unlock(),{capture:true,passive:true}));
+document.addEventListener('visibilitychange',()=>{if(document.hidden)AU.suspend();else AU.resume()});
 
 function loop(t){
   now=t/1000;const real=Math.min(.05,(t-lastT)/1000)||0;lastT=t;
@@ -206,7 +253,7 @@ function loop(t){
     for(let i=0;i<speed;i++){step(real);if(S.won||S.over)break;updateLife(real)}
   }
   arrows.forEach(a=>a.t+=real);arrows=arrows.filter(a=>a.t<.3);
-  draw(uiPause||!speed||!S||S.over||S.won?0:real*speed);if(S)hud();
+  draw(uiPause||!speed||!S||S.over||S.won?0:real*speed);if(S){hud();AU.setMood(S.enemies.length||(S.nextRaid!=null&&S.nextRaid<=1&&!S.over)?'war':'calm')}
   requestAnimationFrame(loop);
 }
 const saved=loadSave();

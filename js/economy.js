@@ -6,6 +6,7 @@ function factors(){
   const k=Math.min(count('kapelle'),3);if(k)f.push(['Kapellen',k*2]);
   if(S.fireDays>0)f.push(['Angst nach Bränden',-3]);
   if(S.cold)f.push(['Kälte ohne Brennholz',-4]);
+  if(S.unpaid)f.push(['Sold nicht bezahlt',-3]);
   return f;
 }
 function dayTick(){
@@ -34,6 +35,9 @@ function dayTick(){
   // Steuern
   if(S.tax===0&&S.res.gold<Math.ceil(S.pop*0.4)){S.tax=1;H.say('Kein Gold mehr für Geschenke.')}
   S.res.gold=Math.max(0,S.res.gold+Math.round(S.pop*TAX[S.tax].g));
+  // Sold für Bogenschützen; reicht das Gold nicht, sinkt die Beliebtheit
+  const sold=Math.ceil(S.archers*SOLD);
+  if(sold){if(S.res.gold>=sold){S.res.gold-=sold;S.unpaid=false}else{if(!S.unpaid)H.say('Der Sold für deine Bogenschützen fehlt! Das Volk murrt.');S.res.gold=0;S.unpaid=true}}else S.unpaid=false;
   // Beliebtheit
   const sum=factors().reduce((a,x)=>a+x[1],0);
   const before=S.pp;S.pp=Math.max(0,Math.min(100,S.pp+sum*0.5));S.lastDelta=S.pp-before;

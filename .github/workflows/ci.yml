@@ -8,15 +8,19 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
       - name: Syntaxprüfung
         run: npm run check
+      - name: Balancing (Headless-Simulation)
+        run: npm run balance
       - name: Playwright installieren
         run: |
           npm install --no-audit --no-fund
           npx playwright install --with-deps chromium
       - name: Smoke-Test (Start, Mission 1, Bauen, PWA, offline)
         run: npm run smoke
+      - name: Tutorial, Rückgängig, Spielstände, Einstellungen
+        run: npm run tutorial

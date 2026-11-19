@@ -28,7 +28,14 @@ for (const [name, viewport] of VIEWS) {
     await page.evaluate(() => { S.day = 4; S.clock = 3.2; }); await page.waitForTimeout(400); await shot('nacht');
     await page.evaluate(() => { S.day = 20; S.clock = 1; }); await page.waitForTimeout(600); await shot('winter');
     await page.evaluate(() => { S.day = 13; S.clock = 1; S.raidSide = 'Norden'; spawnWave(); }); await page.waitForTimeout(4500); await shot('angriff');
+    // Bildrate während des Angriffs grob messen (headless, nur als Vergleich zwischen den Grafikstufen)
+    for (const q of ['hoch', 'niedrig']) {
+      const fps = await page.evaluate(async q => { SET.quality = q; terrKey = ''; resize(); let n = 0; const t0 = performance.now(); await new Promise(r => { const f = () => { n++; performance.now() - t0 < 1500 ? requestAnimationFrame(f) : r(); }; requestAnimationFrame(f); }); return Math.round(n / ((performance.now() - t0) / 1000)); }, q);
+      console.log(`  ${name}: Grafik ${q} ≈ ${fps} fps (headless)`);
+    }
+    await page.evaluate(() => { SET.quality = 'hoch'; terrKey = ''; resize(); });
     await page.evaluate(() => openMenu()); await page.waitForTimeout(200); await shot('menue-im-spiel');
+    await page.locator('#openSettings').click(); await page.waitForTimeout(200); await shot('einstellungen'); await page.locator('#setClose').click();
     if (errors.length) { bad++; console.error(name, errors); } else console.log('✓', name, 'ohne Konsolenfehler');
     await ctx.close();
   }
