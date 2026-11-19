@@ -37,3 +37,32 @@ function customGrid(map){const t=rleDecode(map.t,map.cols*map.rows);const g=t.ma
 // Gespeicherte eigene Karten
 function loadMaps(){try{const l=JSON.parse(store.get(MAP_KEY)||'[]');return Array.isArray(l)?l.map(validateMap).filter(Boolean):[]}catch(e){return[]}}
 function saveMaps(list){store.set(MAP_KEY,JSON.stringify(list))}
+// ---------- Burgformat (Vorbereitung Mehrspieler, siehe docs/MULTIPLAYER.md) ----------
+// Erweitert das Kartenformat um Gebäude, Burgstufe und Verteidiger. Wird im Spiel noch nicht genutzt.
+// {cv:1, map:<Karte v1>, keepLv, b:[[Typ, r, c, Modus?]], d:[[Einheit, r, c]], power}
+const CASTLE_VER=1,CASTLE_TYPES=Object.keys(B).filter(k=>!B[k].tool&&!B[k].foe);
+function castleFromState(meta){
+  const b=[];S.grid.forEach((t,i)=>{if(t.b&&t.b.type!=='keep'&&CASTLE_TYPES.includes(t.b.type))b.push(t.b.mode?[t.b.type,i/COLS|0,i%COLS,t.b.mode]:[t.b.type,i/COLS|0,i%COLS])});
+  const d=S.units.filter(u=>UNIT[u.type]).map(u=>[u.type,u.post/COLS|0,u.post%COLS]);
+  const c={cv:CASTLE_VER,map:mapFromState(meta),keepLv:S.keepLv,b,d};c.power=castlePower(c);return c;
+}
+// Grober Stärkewert für die Gegnersuche: Baukosten der Verteidigung, Burgstufe, Truppen
+function castlePower(c){
+  const cost=k=>Object.entries(B[k].cost||{}).reduce((a,[r,v])=>a+v*(r==='gold'?1:r==='stein'?1.5:1),0);
+  return Math.round(c.b.reduce((a,[k])=>a+(B[k].wall?cost(k)+(B[k].hp||0)/10:0),0)+c.keepLv*120+c.d.reduce((a,[u])=>a+UNIT[u].gold+UNIT[u].hp,0));
+}
+// Prüft eine hochgeladene Burg: gültige Karte, nur bekannte Gebäude auf passendem Gelände, keine Doppelbelegung,
+// Verteidiger auf begehbaren oder erhöhten Feldern, Obergrenzen. Rückgabe: saubere Burg oder null.
+function validateCastle(o,lim={maxB:400,maxD:60}){
+  try{
+    if(!o||o.cv!==CASTLE_VER)return null;const map=validateMap(o.map);if(!map)return null;
+    const t=rleDecode(map.t,map.cols*map.rows),used=new Set([map.kr*map.cols+map.kc]),b=[],d=[];
+    const ok=(r,c)=>r>=0&&c>=0&&r<map.rows&&c<map.cols;
+    for(const x of(Array.isArray(o.b)?o.b:[]).slice(0,lim.maxB)){const[k,r,c,mode]=x;if(!CASTLE_TYPES.includes(k)||!ok(r,c))return null;const i=r*map.cols+c;if(used.has(i))return null;
+      const tt=t[i];if(B[k].bridge?tt!==WATER:(tt!==GRASS&&tt!==HILL))return null;used.add(i);b.push(B[k].modes&&B[k].modes[mode]?[k,r,c,mode]:[k,r,c])}
+    const walls=new Set(b.filter(([k])=>B[k].wall&&!B[k].gate).map(([,r,c])=>r*map.cols+c));walls.add(map.kr*map.cols+map.kc);
+    for(const x of(Array.isArray(o.d)?o.d:[]).slice(0,lim.maxD)){const[u,r,c]=x;if(!UNIT[u]||!ok(r,c))return null;const i=r*map.cols+c,tt=t[i];
+      if(!walls.has(i)&&tt!==GRASS&&tt!==HILL&&tt!==SWAMP)return null;d.push([u,r,c])}
+    const c={cv:CASTLE_VER,map,keepLv:clampN(o.keepLv,0,KEEP_LV.length-1,0),b,d};c.power=castlePower(c);return c;
+  }catch(e){return null}
+}

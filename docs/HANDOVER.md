@@ -1,4 +1,4 @@
-# Übergabe: Stand des Ausbaus zur PWA (19.11.2026, nach Etappe 5)
+# Übergabe: Stand des Ausbaus zur PWA (19.11.2026, nach Etappe 6 – Auftrag abgeschlossen)
 
 Auftrag: `docs/CLAUDE_CODE_PROMPT.md` (Etappen 0–6). Arbeitsweise und Tests: `CLAUDE.md`. Alle Regeln und Zahlen: `docs/DESIGN.md`.
 
@@ -12,15 +12,19 @@ Auftrag: `docs/CLAUDE_CODE_PROMPT.md` (Etappen 0–6). Arbeitsweise und Tests: `
 | #4 | 3 Militär | Truppen als Einheiten (`js/units.js`): Bogenschütze, Speerträger, Schwertkämpfer, Ritter; Laufen auf Mauern, Truppenmodus mit Auswahlrahmen, Chips und Befehlen; feindliche Bogenschützen und Leitermänner; Deckung hinter Zinnen; Gefallene senken die Einwohnerzahl; Spielstand v4 |
 | #5 | 4 Welt | Freies Spiel auf Karten bis 32 × 40 mit Fluss und Furt, Brücke, Hügel, Sumpf, Eisenvorkommen; Kamera am Bergfried, nur Sichtbares wird gezeichnet; Ereignisse (Seuche/Apotheke, Missernte, Wölfe, Blitz, Händler, Turnier, Festtag); Markt; neues spielerisches HUD (Tagesmedaille, Ressourcen-Plaketten, Auftrag mit Fortschrittsleisten, Berater mit Sprechblase, Meldungsbanner); Spielstand v5 |
 | #6 | 5 Inhalte | Kampagne mit 10 Missionen und kleiner Geschichte (6–10 auf großen Karten), Angriffsmission „Sturm auf Rabenfels“ mit feindlicher Burg, Verteidigern, Belagerungswerkstatt, Rammbock und Katapult; Kartenschmiede mit Malen, Einstellungen, Testlauf, Speichern, Teilen-Link (#karte=…) und Datei-Export/-Import; Spielprotokoll für Playtests (Menü → „Spielprotokoll“) |
+| #7 | 6 Mehrspieler (Konzept) | `docs/MULTIPLAYER.md`: Ablauf, Burg-, Angriffs- und Wiederholungsformat, Determinismus, Schutz gegen Schummeln, Supabase-Vorschlag mit Tabellen und Schnittstellen; Burgformat im Code vorbereitet (`castleFromState`, `validateCastle`, `castlePower` in `js/maps.js`, mit Test) |
 
-## Als Nächstes
+## Offene Punkte
 
-Etappe 6: `docs/MULTIPLAYER.md` (nur Konzept, kein Einbau). Das Kartenformat aus `js/maps.js` (Version 1) ist als Grundlage für das Burgformat gedacht; es müsste um Gebäude, Truppenaufstellung und eine Prüfsumme erweitert werden.
+- **GitHub Pages / Domain** prüfen (siehe unten), alte Branches in GitHub löschen.
+- **Playtest:** Rückmeldungen über das Spielprotokoll (Menü → „📋 Spielprotokoll“ → „Als Datei“) einsammeln und einarbeiten.
+- **Mehrspieler:** nur als Konzept; die Schritte stehen in `docs/MULTIPLAYER.md`, Abschnitt 9. Erster sinnvoller Schritt wäre der Determinismus (fester Schritt, Zufall mit Seed, `Math.sqrt` statt `Math.hypot`).
+- Ideen aus den Etappen (unten) sind nicht beauftragt, nur notiert.
 
 ## Hinweise für die nächste Sitzung
 
 - Tests: `npm test` (Syntax, Logik, Balancing, Smoke, Tutorial, Truppen, Welt, Kartenschmiede; das Balancing aller 10 Missionen dauert rund 2 Minuten) und `node tests/e2e.mjs <ordner>` für Screenshots. Playwright ist lokal vorinstalliert.
-- Nach jeder Etappe `VERSION` in `sw.js` erhöhen (zuletzt `burgwacht-v5.9.0`) und neue Dateien in `SHELL` eintragen.
+- Nach jeder Etappe `VERSION` in `sw.js` erhöhen (zuletzt `burgwacht-v6.0.0`) und neue Dateien in `SHELL` eintragen.
 - PRs per GitHub-MCP-Werkzeug (`create_pull_request`, `merge_pull_request`). Remote-Branches ließen sich aus der Umgebung nicht löschen: `feat/etappe-0-grundlage` … `feat/etappe-3-militaer` sowie die `claude/…`-Branches bitte in GitHub löschen.
 - **GitHub Pages ist noch nicht aktiviert** (aus der Umgebung nicht möglich): Settings → Pages → „Deploy from a branch“ → `main` / `/ (root)` → Save; Custom domain `burg.micana.de` → Save; nach der DNS-Prüfung „Enforce HTTPS“ anhaken. DNS bei micana.de: CNAME `burg` → `michael-linuxdev.github.io`.
 - Offene Ideen aus Etappe 3: Wachen im Bergfried werden nicht als Figuren gezeichnet; Einheiten haben keine Formationen oder Haltungen (z. B. „Stellung halten“); feindliche Bogenschützen wählen immer die nächste Einheit.

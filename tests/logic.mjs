@@ -192,4 +192,12 @@ t('Kartenformat: Lauflängen, Prüfung und Rundreise', () => {
   eq(g.run('JSON.stringify(S.grid.map(t=>t.t))===JSON.stringify(customGrid(__v).map(t=>t.t))'), true);
   g.run('S.pop=30;checkWin()'); eq(g.run('[S.won,getProg().done.includes(-2)]'), [true, false], 'eigene Karten zählen nicht zur Kampagne');
 });
+t('Burgformat (Mehrspieler-Vorbereitung): Export, Prüfung, Stärkewert', () => {
+  const g = fresh(); ring(g, true); troops(g, ['archer', 'spear']); g.run('upgradeKeep()');
+  const c = g.run('castleFromState({n:"Testburg",s:"",res:{...BASE},pop:10,goals:[],raid:null,events:false})');
+  eq([c.cv, c.map.n, c.b.some(x => x[0] === 'tor'), c.d.length, c.power > 0], [1, 'Testburg', true, 2, true]);
+  g.ctx.__c = c; const v = g.run('validateCastle(__c)'); eq(JSON.stringify(v), JSON.stringify(c), 'Rundreise');
+  g.ctx.__x = { ...c, b: [...c.b, ['turm', c.map.kr, c.map.kc]] }; eq(g.run('validateCastle(__x)'), null, 'Turm auf dem Bergfried');
+  g.ctx.__y = { ...c, b: [['fkeep', 1, 1]] }; eq(g.run('validateCastle(__y)'), null, 'feindliche Bauten verboten');
+});
 if (failed) { console.error(`✗ ${failed} Logik-Test(s) fehlgeschlagen`); process.exitCode = 1; } else console.log('Logik-Tests bestanden');

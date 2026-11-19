@@ -32,6 +32,7 @@ Läuft als installierbare PWA (offline spielbar). Auf dem Handy im Browser öffn
 | `manifest.webmanifest` | PWA-Manifest |
 | `icons/` | App-Icons |
 | `docs/DESIGN.md` | Alle Spielregeln, Zahlen und Formeln (Grundlage für die Unity-Portierung) |
+| `docs/MULTIPLAYER.md` | Konzept für einen asynchronen Mehrspielermodus (nicht eingebaut): Ablauf, Datenformate, Schutz gegen Schummeln, Backend-Vorschlag |
 | `tests/` | Logik-Tests (headless) und Playwright-Tests: Smoke, Tutorial/Spielstände, Truppen, Welt, Kartenschmiede, Screenshots |
 | `tools/sim.mjs` | Headless-Simulation mit Bot zum Abstimmen der Missionen |
 | `CNAME` | Eigene Domain für GitHub Pages |
