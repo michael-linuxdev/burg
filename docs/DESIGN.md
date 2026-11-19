@@ -284,7 +284,7 @@ Die Darstellung darf den Zustand nur über die Logik-Funktionen ändern (`act`, 
 
 Nacht: Abdunklung höchstens 48 % (einfache Grafikstufe 40 %), Lichtquellen schneiden Lichtkegel heraus. Mauern verbinden sich optisch nicht mit dem Bergfried; der Bergfried wird nach den übrigen Gebäuden seiner Reihe gezeichnet.
 
-Das HUD (Statusleiste) ist reine Darstellung: Tagesmedaille mit Fortschrittsring, Ressourcen-Plaketten (gold umrandet ab 90 % Lagerfüllung, rot bei Verfall), Beliebtheitsleiste mit 50er-Marke, Angriffs-Plakette, „Auftrag“ mit einer Fortschrittsleiste je Ziel und ein Berater, der den aktuellen Hinweis in einer Sprechblase gibt. Meldungen erscheinen als Banner; Farbe nach Art (Gefahr rot, Erfolg grün).
+Das HUD (Statusleiste) ist reine Darstellung. Hochformat kompakt in drei schmalen Zeilen: Tagesmedaille mit Fortschrittsring und Tempo; Ressourcen-Plaketten als wischbare Zeile (gold umrandet ab 90 % Lagerfüllung, rot bei Verfall); Einwohner, Beliebtheitsleiste, Auftrag (Symbol, Leiste, Zahl) und Angriffs-Plakette. „▾“ klappt alles aus (alle Ressourcen, Zielbeschreibungen, freie Leute). Der Berater sitzt als Porträt unter der Leiste; seine Sprechblase öffnet sich bei jedem neuen Hinweis für 7 s, Antippen öffnet oder schließt sie. Quer und am Desktop steht alles in der 250 px breiten Seitenleiste. Meldungen erscheinen als Banner; Farbe nach Art (Gefahr rot, Erfolg grün).
 
 ## 11. Balancing
 

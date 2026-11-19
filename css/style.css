@@ -110,7 +110,7 @@ canvas{position:absolute;inset:0;width:100%;height:100%;touch-action:none;displa
 .tip{font-size:13px;color:var(--muted)}
 /* Querformat: Seitenleiste links, Karte rechts */
 :root{padding-left:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px)}
-.land #hud{right:auto;width:290px;margin:0;bottom:76px;overflow-y:auto;display:flex;flex-direction:column}
+.land #hud{right:auto;width:250px;margin:0;bottom:76px;overflow-y:auto;display:flex;flex-direction:column}
 .land .r1{flex-wrap:wrap;row-gap:6px}
 .land #status{flex-wrap:wrap;row-gap:2px}
 .land .pp{flex:1 1 140px}
@@ -118,10 +118,10 @@ canvas{position:absolute;inset:0;width:100%;height:100%;touch-action:none;displa
 .land .speed button{flex:1}
 .land #when{flex:1}
 .land #hint{min-height:0;-webkit-line-clamp:4}
-.land #dock{left:8px;right:auto;width:290px;bottom:8px;padding:0;justify-content:stretch}
+.land #dock{left:8px;right:auto;width:250px;bottom:8px;padding:0;justify-content:stretch}
 .land .fab{flex:1;justify-content:center;padding:11px 10px}
 .land #toolbar{max-width:none}
-.land #toast{left:calc(298px + (100% - 298px)/2);bottom:14px}
+.land #toast{left:calc(258px + (100% - 258px)/2);bottom:14px}
 .land .bsheet{left:auto;right:0;top:0;bottom:0;width:min(420px,58%);max-height:none;margin:0;border-radius:18px 0 0 18px;border:1px solid var(--line);border-right:0;animation:side .2s ease-out;padding-top:8px}
 .land .grab{display:none}
 @keyframes side{from{transform:translateX(24px);opacity:.5}to{transform:none;opacity:1}}
@@ -129,7 +129,7 @@ canvas{position:absolute;inset:0;width:100%;height:100%;touch-action:none;displa
 #update{position:absolute;left:50%;top:8px;transform:translateX(-50%);z-index:30;border-radius:999px;padding:9px 16px;
   font-weight:700;cursor:pointer;color:var(--ink);box-shadow:0 4px 16px rgba(0,0,0,.25);max-width:calc(100% - 32px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #update[hidden]{display:none}
-.land #update{left:calc(298px + (100% - 298px)/2)}
+.land #update{left:calc(258px + (100% - 258px)/2)}
 /* Rückgängig in der Werkzeugleiste */
 .btn.icon{min-width:44px;min-height:40px;padding:6px 10px;font-size:20px;line-height:1}
 /* Spielstände */
@@ -153,7 +153,7 @@ canvas{position:absolute;inset:0;width:100%;height:100%;touch-action:none;displa
 #coach[hidden]{display:none}
 #coach .row{justify-content:flex-end;margin-top:6px}
 #coach .btn{min-height:40px}
-.land #coach{left:auto;right:10px;transform:none;bottom:10px;width:min(380px,calc(100% - 320px))}
+.land #coach{left:auto;right:10px;transform:none;bottom:10px;width:min(380px,calc(100% - 280px))}
 .coach-target{animation:pulse 1.2s ease-in-out infinite;position:relative;z-index:9}
 @keyframes pulse{0%,100%{box-shadow:0 0 0 0 color-mix(in srgb,var(--gold) 70%,transparent)}50%{box-shadow:0 0 0 6px color-mix(in srgb,var(--gold) 0%,transparent),0 0 0 3px var(--gold)}}
 @media (prefers-reduced-motion:reduce){.coach-target{outline:3px solid var(--gold);outline-offset:2px}}
@@ -266,3 +266,55 @@ canvas{position:absolute;inset:0;width:100%;height:100%;touch-action:none;displa
 .land #hud{gap:0}
 .land #advice{flex:1 1 auto;min-height:0}
 .land #hint{-webkit-line-clamp:6}
+/* ---------- Kompaktes HUD (Hochformat): wenig Fläche, Details per „▾“ ---------- */
+#hud{padding:5px 8px 6px}
+#menuBtn{width:32px;height:32px;font-size:15px}
+#medal{width:32px;height:32px}#season{width:25px;height:25px;font-size:14px}
+#day{font-size:16px}
+.dtxt small{font-size:11.5px}
+.speed button{min-height:28px;padding:2px 8px;min-width:32px}
+#res{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;margin-top:5px;padding-bottom:1px}
+#res::-webkit-scrollbar{display:none}
+#res .rc{flex:0 0 auto;font-size:13px;padding:0 6px 0 3px}
+#res .rc i{font-size:13px}
+#status{margin-top:5px;gap:5px;flex-wrap:nowrap}
+.chip2,#raid{padding:1px 7px 1px 5px;font-size:13px}
+.chip2 em{display:none}
+.pp{flex:1 1 auto;min-width:0;gap:3px}
+.ppbar{max-width:70px;height:8px}
+#goal{margin:0;padding:0;border:0;flex:0 0 auto;gap:6px;flex-wrap:nowrap}
+#goal .gl,#goal .gq small{display:none}
+#goal .gb{width:30px;height:6px}
+#raid{margin-left:0}
+#hudMore{flex:0 0 auto;width:30px;height:28px;border-radius:8px;border:1px solid var(--chipL);background:var(--chip);color:var(--hudInk);cursor:pointer;font-size:13px;padding:0}
+#hud.full #res{flex-wrap:wrap}
+#hud.full #status{flex-wrap:wrap;row-gap:5px}
+#hud.full .chip2 em{display:inline}
+#hud.full #goal{flex-basis:100%;flex-wrap:wrap;order:5;padding-top:4px;border-top:1px dashed var(--chipL)}
+#hud.full #goal .gl,#hud.full #goal .gq small{display:inline}
+#hud.full #goal .gb{width:52px}
+/* Berater unter der Leiste: Porträt immer, Sprechblase nur kurz */
+#advice{position:absolute;left:6px;right:6px;top:calc(100% + 6px);margin:0;pointer-events:none;align-items:flex-start}
+#advice>*{pointer-events:auto}
+#advisorBtn{padding:0;border:0;background:none;cursor:pointer;flex:0 0 auto;border-radius:50%;box-shadow:0 2px 8px rgba(0,0,0,.3)}
+#advisor{width:40px;height:40px;display:block}
+#advice #hint{display:none;min-height:0;max-width:330px;box-shadow:0 4px 14px rgba(0,0,0,.25);cursor:pointer}
+#advice.open #hint{display:-webkit-box;-webkit-line-clamp:4}
+#advice::after{display:none}
+#advice.open::after{display:block;left:45px}
+/* Querformat und Desktop: Seitenleiste hat Platz – alles sichtbar, Berater in der Leiste */
+.land #hudMore{display:none}
+.land #res{flex-wrap:wrap}
+.land #status{flex-wrap:wrap;row-gap:5px}
+.land .chip2 em{display:inline}
+.land #goal{flex-basis:100%;flex-wrap:wrap;order:5;padding-top:4px;border-top:1px dashed var(--chipL)}
+.land #goal .gl,.land #goal .gq small{display:inline}
+.land #goal .gb{width:52px}
+.land #advice{position:relative;left:auto;right:auto;top:auto;margin-top:6px}
+.land #advice #hint{display:-webkit-box;-webkit-line-clamp:6;max-width:none}
+.land #advice::after{display:block;left:45px}
+.land .fab{padding:10px 6px;gap:5px;font-size:15px}
+.land .speed button{min-height:30px}
+.land #hud>*{flex-shrink:0}
+.land #chips{flex-wrap:wrap}
+.land.troops #hud{bottom:170px}

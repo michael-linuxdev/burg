@@ -106,6 +106,13 @@ function court(){
     return `<li><span>${STORE_NAME[kind]} <small>(je ${c})</small></span><span>${ks.filter(k=>S.res[k]>0||kind!=='waffen').map(k=>`<span class="${S.res[k]>=c?'minus':''}">${RICON[k]} ${Math.floor(S.res[k])}</span>`).join(' ')||'leer'}</span></li>`}).join('')+
     (Object.keys(S.spill).length?`<li class="minus"><span>Heute verfallen</span><span>${Object.entries(S.spill).map(([k,v])=>v+' '+RICON[k]).join(' ')}</span></li>`:'');
 }
+// Berater: Im Hochformat klappt die Sprechblase bei einem neuen Hinweis kurz auf und schließt sich nach 7 s wieder.
+let adviceT=0;
+function openAdvice(stay){const a=$('advice');a.classList.add('open');clearTimeout(adviceT);if(!stay)adviceT=setTimeout(()=>a.classList.remove('open'),7000)}
+$('advisorBtn').onclick=()=>{if($('advice').classList.contains('open')){$('advice').classList.remove('open');clearTimeout(adviceT)}else openAdvice()};
+$('hint').onclick=()=>{$('advice').classList.remove('open');clearTimeout(adviceT)};
+// „▾“ klappt die Statusleiste aus: alle Ressourcen, Zielbeschreibungen
+$('hudMore').onclick=()=>{const f=$('hud').classList.toggle('full');$('hudMore').setAttribute('aria-expanded',f);$('hudMore').textContent=f?'▴':'▾';requestAnimationFrame(resize)};
 function hint(){
   if(sel===TROOP)return !S.units.length?'Keine Truppen. Bilde sie im Hof aus.':picked.size?'Tippe auf ein Feld, eine Mauer oder einen Turm, um die Truppen hinzuschicken. Tippe auf einen Feind, um ihn anzugreifen.':'Tippe auf Einheiten oder ziehe mit einem Finger einen Rahmen. Zwei Finger verschieben die Karte.';
   if(sel)return B[sel].drag?'Mit dem Finger über die Felder ziehen. Mit zwei Fingern verschieben.':'Tippe auf ein helles Feld. Ein Finger verschiebt die Karte.';
@@ -165,7 +172,7 @@ function hud(force){
   const gh=m.goals.length?gs.map(g=>`<span class="gq${g.ok?' done':''}" title="${GOALTXT[g.t][1]}"><i>${GOALTXT[g.t][0]}</i><span class="gb"><b style="width:${Math.min(100,Math.round(g.v/g.n*100))}%"></b></span><em>${Math.min(g.v,g.n)}/${g.n}</em><small>${GOALTXT[g.t][1]}</small></span>`).join('')
     :`<span class="gq"><i>⚔️</i><em>${S.repelled}</em><small>${S.repelled===1?'Angriff':'Angriffe'} abgewehrt</small></span>`;
   const gk=gh+'|'+(m.goals.length?1:0);if($('goal').dataset.k!==gk){$('goal').dataset.k=gk;$('goal').innerHTML=`<span class="gl">${m.goals.length?'Auftrag':'Endlos'}</span>`+gh}
-  const ht=hint();if($('hint').textContent!==ht)$('hint').textContent=ht;
+  const ht=hint();if($('hint').textContent!==ht){$('hint').textContent=ht;openAdvice()}
   $('tUndo').disabled=!canUndo();troopBar();
   const ta=!sel&&troopsAvail();if(($('openTroops').style.display!=='none')!==ta){$('openTroops').style.display=ta?'flex':'none';requestAnimationFrame(resize)}
   if($('courtWrap').classList.contains('open'))court();
