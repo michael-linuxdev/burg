@@ -51,6 +51,12 @@ const B={
   bruecke:{n:'Brücke',cost:{holz:12},bridge:1,nofire:1,d:'Nur auf Wasser. Deine Leute und Feinde können darüber laufen – eine gute Engstelle.'},
   markt:{n:'Markt',cost:{holz:20,stein:6},d:'Kaufe und verkaufe Waren im Hof.'},
   apotheke:{n:'Apotheke',cost:{holz:10,stein:6,gold:25},w:1,d:'Heilt Seuchen schnell und beugt ihnen vor. Braucht 1 Arbeiter.'},
+  werkstatt:{n:'Belagerungswerkstatt',cost:{holz:20,stein:10},d:'Baut Rammböcke und Katapulte (im Hof).'},
+  // Feindliche Burg (Angriffsmissionen): nicht baubar, nicht abreißbar; wird von eigenen Truppen zerstört
+  fmauer:{n:'Feindliche Mauer',cost:{},wall:1,foe:1,base:'mauer',hp:60,d:''},
+  fturm:{n:'Feindlicher Turm',cost:{},wall:1,foe:1,base:'turm',hp:120,d:''},
+  ftor:{n:'Feindliches Tor',cost:{},wall:1,gate:1,foe:1,base:'tor',hp:180,d:''},
+  fkeep:{n:'Feindlicher Bergfried',cost:{},wall:1,foe:1,hp:400,d:''},
   ruest:{n:'Rüstkammer',cost:{holz:8,stein:12},store:'waffen',d:'+20 Platz je Waffenart. Ohne Rüstkammer passen nur wenige Waffen in den Bergfried.'},
   abriss:{n:'Abreißen',i:'✖️',cost:{},drag:1,tool:1,d:'Tippe oder ziehe über Gebäude. Du bekommst die Hälfte zurück.'}
 };
@@ -75,6 +81,8 @@ const UNIT={
   archer:{n:'Bogenschütze',pl:'Bogenschützen',i:'🏹',gold:ARCHER_GOLD,need:{bogen:1},sold:1,hp:10,spd:1.2,dmg:3,rate:1,range:3.2,armor:1,col:'#2E5A88',d:'Schießt von Mauern und Türmen weiter.'},
   spear:{n:'Speerträger',pl:'Speerträger',i:'🔱',gold:8,need:{speer:1},sold:1,hp:16,spd:1.1,dmg:3,rate:1,reach:1.15,vsRam:3,armor:.9,col:'#6B7A3A',d:'Günstig, kurze Reichweite, dreifacher Schaden gegen Rammböcke.'},
   sword:{n:'Schwertkämpfer',pl:'Schwertkämpfer',i:'🗡️',gold:15,need:{schwert:1,leder:1},sold:2,hp:26,spd:.85,dmg:6,rate:1,reach:.9,armor:.6,col:'#7A2E2E',d:'Langsam, aber zäh und schlagkräftig.'},
+  sram:{n:'Rammbock',pl:'Rammböcke',i:'🪵',gold:20,need:{holz:15},sold:1,hp:70,spd:.5,dmg:18,rate:.5,reach:1,armor:.4,siege:1,col:'#7A5232',at:'werkstatt',d:'Zerschlägt Tore und Mauern. Kämpft nicht gegen Truppen.'},
+  kat:{n:'Katapult',pl:'Katapulte',i:'🎯',gold:35,need:{holz:20,stein:10},sold:2,hp:30,spd:.4,dmg:14,rate:.25,range:6,armor:.8,siege:1,col:'#6B5A3A',at:'werkstatt',d:'Schleudert Steine auf Gebäude, Reichweite 6.'},
   knight:{n:'Ritter',pl:'Ritter',i:'🐎',gold:40,need:{schwert:1,leder:1},sold:3,hp:34,spd:2.3,dmg:7,rate:1.2,reach:1,armor:.6,col:'#C9A23A',d:'Schnell zu Pferd, ideal für Ausfälle.'}
 };
 // Markt: Gold je Stück beim Kaufen und Verkaufen. Gehandelt wird in Paketen zu TRADE_N Stück.
@@ -84,6 +92,8 @@ const PRICE={holz:[2,1],stein:[3,1.5],eisen:[6,3],weizen:[2,1],mehl:[3,1.5],brot
 const SWAMP_SLOW=.5,HILL_RANGE=1;// Sumpf: Tempo-Faktor; Hügel: Reichweitenbonus für Bogenschützen und Wachen auf Türmen/Mauern
 const EVENT_CHANCE=.12,EVENT_COOL=5,PEST_DAYS=5,BAD_HARVEST_DAYS=6;
 const BASE={holz:40,stein:0,weizen:0,mehl:0,brot:0,aepfel:15,gold:60,eisen:0,haeute:0,bogen:0,speer:0,schwert:0,leder:0};
+// Feldgrößen und Bergfried-Lage einer Mission: map {cols, rows}, keep [r, c]. fort: feindliche Burg (Angriffsmission).
+// day: Starttag (z. B. spät im Jahr). Missionen ab 6 spielen auf großen Karten.
 const MISSIONS=[
   {n:'Ein neuer Anfang',s:'Der König hat dir ein Stück Land überlassen. Noch droht keine Gefahr. Baue ein Dorf auf, in dem die Leute gerne leben.',
    seed:1201,res:{...BASE},pop:10,goals:[['pop',24]],raid:null,events:false},
@@ -94,7 +104,18 @@ const MISSIONS=[
   {n:'Flammen im Tal',s:'Die Räuber haben Fackelträger dabei. Brunnen löschen Brände in der Nähe, und du kannst brennende Häuser antippen, um sie für 2 Gold zu löschen.',
    seed:5519,res:{...BASE,holz:60,stein:20,aepfel:20,gold:100,bogen:4},pop:16,goals:[['raids',4],['pp',50]],raid:{start:7,every:6,fire:1,ram:99,ladder:3,scale:1}},
   {n:'Die Belagerung',s:'Ein Heer mit Rammböcken rückt an. Pfeile richten gegen sie wenig aus, aber ein starkes Tor und dicke Mauern bremsen sie lange genug.',
-   seed:6623,res:{...BASE,holz:80,stein:40,brot:30,aepfel:30,gold:170,bogen:6,speer:4},pop:18,goals:[['raids',5]],raid:{start:8,every:5,fire:2,ram:2,archer:3,scale:1.4}}
+   seed:6623,res:{...BASE,holz:80,stein:40,brot:30,aepfel:30,gold:170,bogen:6,speer:4},pop:18,goals:[['raids',5]],raid:{start:8,every:5,fire:2,ram:2,archer:3,scale:1.4}},
+  {n:'Über den Fluss',s:'Der König schickt dich in ein weites Tal. Ein Fluss teilt das Land, und die besten Wälder liegen am anderen Ufer. Baue Brücken – aber denk daran: Was deine Leute nutzen, nutzen auch die Räuber.',
+   seed:7101,map:{cols:20,rows:28},res:{...BASE,holz:90,stein:20,aepfel:25,gold:110,bogen:4},pop:16,goals:[['pop',32],['raids',3]],raid:{start:10,every:7,fire:2,ladder:3,ram:99,scale:1}},
+  {n:'Eisen aus den Bergen',s:'Der Graf von Rabenfels rüstet auf. Auch du brauchst Schwerter. In den Hügeln liegt Eisen – bring die Schmiede zum Glühen und halte seine Späher fern.',
+   seed:7207,map:{cols:20,rows:28},res:{...BASE,holz:100,stein:60,aepfel:30,gold:140,bogen:4,speer:2},pop:18,goals:[['schwert',6],['raids',3]],raid:{start:9,every:7,archer:2,ladder:3,ram:99,fire:99,scale:1.1}},
+  {n:'Der lange Winter',s:'Der Sommer ist fast vorbei, als du ankommst. Lege Vorräte an, halte die Leute warm und bring dein Dorf durch den Winter bis ins neue Jahr.',
+   seed:7313,map:{cols:20,rows:28},day:14,res:{...BASE,holz:110,stein:20,aepfel:40,gold:120,bogen:4},pop:18,goals:[['day',46],['pop',28]],raid:{start:14,every:8,fire:2,ram:4,ladder:99,scale:1}},
+  {n:'Die große Belagerung',s:'Rabenfels schickt sein ganzes Heer. Rammböcke, Leitern, Bogenschützen – halte sechs Angriffe stand, dann kannst du zurückschlagen.',
+   seed:7419,map:{cols:32,rows:40},res:{...BASE,holz:140,stein:80,brot:30,aepfel:40,gold:220,bogen:8,speer:6},pop:22,goals:[['raids',6]],raid:{start:10,every:5,fire:2,ladder:3,archer:3,ram:3,scale:1.8}},
+  {n:'Sturm auf Rabenfels',s:'Jetzt drehen wir den Spieß um. Errichte dein Lager im Süden, baue eine Belagerungswerkstatt und brich die Burg des Grafen im Norden. Katapulte schwächen Türme, Rammböcke das Tor – und deine Truppen erledigen den Rest.',
+   seed:7523,map:{cols:32,rows:40},keep:[34,16],fort:{r:8,c:16,rad:3,guards:8,archers:2},res:{...BASE,holz:160,stein:90,aepfel:40,brot:20,gold:320,eisen:10,bogen:6,speer:6,schwert:4,leder:4},pop:24,
+   goals:[['siege',1]],raid:{start:10,every:7,ram:4,ladder:3,archer:3,fire:99,scale:1.3}}
 ];
 const FREE={n:'Freies Spiel',s:'Endlose Angriffe auf einer zufälligen Karte. Wie lange hält deine Burg?',res:{...BASE,brot:5,bogen:3},pop:10,goals:[],raid:{start:8,every:7,fire:3,ram:5,ladder:4,archer:6,scale:1}};
-const GOALTXT={pop:['👥','Einwohner'],brot:['🍞','Brot auf Vorrat'],raids:['⚔️','Angriffe abgewehrt'],pp:['❤️','Beliebtheit am Ende']};
+const GOALTXT={pop:['👥','Einwohner'],brot:['🍞','Brot auf Vorrat'],raids:['⚔️','Angriffe abgewehrt'],pp:['❤️','Beliebtheit am Ende'],schwert:['🗡️','Schwerter auf Vorrat'],day:['📅','Tag erreichen'],siege:['🏰','feindlichen Bergfried zerstören']};

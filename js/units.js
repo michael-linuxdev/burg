@@ -9,9 +9,9 @@ const UPLACES={mauer:2,turm:3,keep:5};// Plätze oben auf Mauerfeld, Turm, Bergf
 const GROUND_CAP=3;// Einheiten je Bodenfeld beim Verteilen einer Gruppe
 let uid=1;
 
-const isUp=i=>{const b=S.grid[i].b;return !!b&&(b.type==='keep'||(isWall(b)&&!B[b.type].gate))};
+const isUp=i=>{const b=S.grid[i].b;return !!b&&!isFoe(b)&&(b.type==='keep'||(isWall(b)&&!B[b.type].gate))};
 const upCap=i=>{const b=S.grid[i].b;return b?UPLACES[b.type]||0:0};
-function groundOk(i){const t=S.grid[i];return walkT(t)&&(!isWall(t.b)||B[t.b.type].gate)&&!(t.b&&t.b.type==='keep')}
+function groundOk(i){const t=S.grid[i];return walkT(t)&&(!isWall(t.b)||(B[t.b.type].gate&&!isFoe(t.b)))&&!(t.b&&t.b.type==='keep')}
 function unitStep(a,b){// darf eine Einheit von Feld a nach Feld b?
   const ua=isUp(a),ub=isUp(b);
   if(ua&&ub)return true;
@@ -26,6 +26,27 @@ function unitPath(a,b){
     for(const[dr,dc]of DIRS){const r=ur+dr,c=uc+dc;if(!inb(r,c))continue;const v=r*COLS+c;
       if(pv[v]>=0||!unitStep(u,v))continue;pv[v]=u;if(v===b){const p=[v];let k=u;while(k!==a){p.push(k);k=pv[k]}return p.reverse()}q.push(v)}}
   return null;
+}
+// Breitensuche von a bis zu einem Feld, das höchstens rng Felder von Feld t entfernt ist (für Angriffe auf Gebäude)
+function unitPathNear(a,t,rng){
+  const tr=(t/COLS|0)+.5,tc=t%COLS+.5,near=v=>Math.hypot((v/COLS|0)+.5-tr,v%COLS+.5-tc)<=rng;
+  if(near(a))return[];
+  const pv=new Int32Array(N).fill(-1);pv[a]=a;const q=[a];
+  for(let h=0;h<q.length;h++){const u=q[h],ur=u/COLS|0,uc=u%COLS;
+    for(const[dr,dc]of DIRS){const r=ur+dr,c=uc+dc;if(!inb(r,c))continue;const v=r*COLS+c;
+      if(pv[v]>=0||!unitStep(u,v))continue;pv[v]=u;if(near(v)){const p=[v];let k=u;while(k!==a){p.push(k);k=pv[k]}return p.reverse()}q.push(v)}}
+  return null;
+}
+// Feindliches Gebäude angreifen (nur Nahkämpfer und Belagerungsgerät; Bogenschützen richten an Mauern nichts aus)
+function orderAttackB(list,i){let n=0;for(const u of list){const U=UNIT[u.type];if(U.range&&!U.siege)continue;u.tgtB=i;u.tgt=null;u.chase=0;n++}return n}
+function hitBuilding(u,i){
+  const U=UNIT[u.type],t=S.grid[i],b=t.b;if(!b)return;const dmg=U.dmg*(U.vsWall!=null?U.vsWall:U.siege?1:.3);
+  const x=i%COLS+.5,y=(i/COLS|0)+.5;
+  if(U.range)H.shot(u.x,u.y,x,y,false,unitLift(u),.5,'stone');else H.sfx(u.type==='sram'?'ramme':'treffer');
+  b.hp-=dmg;H.fx(x,y+.3,'dust',U.siege?6:2);
+  if(b.hp<=0){const keep=b.type==='fkeep';t.b=null;bump();H.fx(x,y+.1,'dust',18);H.sfx('einsturz');
+    if(keep){S.foeDown=true;for(const e of S.enemies)if(e.def)e.hp=0;H.say('🏰 Der feindliche Bergfried ist gefallen!');checkWin()}
+    else H.say(B[b.type].n+' zerstört.');assignWorkers()}
 }
 const unitsAt=i=>S.units.filter(u=>(u.dest!=null?u.dest:u.i)===i);
 function newUnit(type,i){const U=UNIT[type];return{id:uid++,type,i,x:i%COLS+.5,y:(i/COLS|0)+.5,hp:U.hp,max:U.hp,path:[],dest:null,cd:0,tgt:null,post:i}}
@@ -76,6 +97,14 @@ function updateUnits(dt){
       if(d<=sp){u.x=tx;u.y=ty;u.i=nx;u.path.shift();if(!u.path.length)u.dest=null}else{u.x+=dx/d*sp;u.y+=dy/d*sp}
     }
     u.cd-=dt;
+    // Gebäudeangriff: hinlaufen bis in Reichweite, dann zuschlagen bzw. schießen
+    if(u.tgtB!=null&&!isFoe(S.grid[u.tgtB].b))u.tgtB=null;
+    if(U.siege&&u.tgtB==null&&!u.path.length&&U.range){let bd=U.range+.3;for(let i=0;i<N;i++){const b=S.grid[i].b;if(!isFoe(b))continue;const d=Math.hypot(i%COLS+.5-u.x,(i/COLS|0)+.5-u.y);if(d<bd){bd=d;u.tgtB=i}}}
+    if(u.tgtB!=null){const i=u.tgtB,d=Math.hypot(i%COLS+.5-u.x,(i/COLS|0)+.5-u.y),rr=U.range?U.range+.3:1.2;
+      if(d<=rr){if(U.range&&u.path.length){u.path=[];u.dest=null;u.post=u.i}if(!u.path.length&&u.cd<=0){u.cd=1/U.rate;hitBuilding(u,i)}}
+      else{u.chase=(u.chase||0)-dt;if(u.chase<=0){u.chase=.7;const p=unitPathNear(u.i,i,rr-.15);if(p&&p.length){u.path=p;u.dest=p[p.length-1];u.post=u.dest}}}
+      continue}
+    if(U.siege)continue;// Belagerungsgerät kämpft nicht gegen Truppen
     if(u.tgt&&(u.tgt.hp<=0||!S.enemies.includes(u.tgt)))u.tgt=null;
     // Ziel wählen: befohlener Feind, sonst nächster in Reichweite (Nahkämpfer verteidigen ihren Posten im Umkreis 2)
     const rng=unitRange(u);let tg=u.tgt,bd=Infinity;
@@ -100,7 +129,7 @@ function updateUnits(dt){
 const soldiers=()=>S.units.length;
 const soldCost=()=>S.units.reduce((a,u)=>a+UNIT[u.type].sold,0);
 // Truppen ausbilden: Kaserne, freie Person, Gold und Waffen. Rückgabe: Fehlertext oder ''.
-function recruitWhy(t='archer'){const U=UNIT[t];if(!count('kaserne'))return 'Erst eine Kaserne bauen';if(S.idle<1)return 'Keine freien Leute';
-  if(S.res.gold<U.gold)return 'Nicht genug Gold';const miss=Object.keys(U.need).find(k=>S.res[k]<U.need[k]);if(miss)return 'Keine '+RNAME[miss]+' in der Rüstkammer';return ''}
+function recruitWhy(t='archer'){const U=UNIT[t],at=U.at||'kaserne';if(!count(at))return 'Erst '+(at==='kaserne'?'eine Kaserne':'eine Belagerungswerkstatt')+' bauen';if(S.idle<1)return 'Keine freien Leute';
+  if(S.res.gold<U.gold)return 'Nicht genug Gold';const miss=Object.keys(U.need).find(k=>S.res[k]<U.need[k]);if(miss)return STORE[miss]==='waffen'?'Keine '+RNAME[miss]+' in der Rüstkammer':'Nicht genug '+RNAME[miss];return ''}
 function recruit(t='archer'){const why=recruitWhy(t);if(why)return why;const U=UNIT[t];S.res.gold-=U.gold;for(const[k,v]of Object.entries(U.need))S.res[k]-=v;
   const u=newUnit(t,KI);S.units.push(u);deployUnit(u);assignWorkers();H.sfx('klick');return ''}

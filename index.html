@@ -54,6 +54,15 @@
       <div class="chips" id="chips" role="group" aria-label="Truppen auswählen"></div>
     </div>
   </div>
+  <div id="edbar" class="glass" hidden>
+    <div class="chips" id="edBrushes" role="group" aria-label="Gelände wählen"></div>
+    <div class="row edbtns"><button class="btn" id="edSet">⚙️ Einstellungen</button><button class="btn" id="edSave">💾 Speichern</button><button class="btn primary" id="edTest">▶ Testen</button><button class="btn icon" id="edClose" aria-label="Kartenschmiede schließen">✕</button></div>
+  </div>
+  <div class="sheetwrap" id="edWrap"><div class="bsheet" role="dialog" aria-label="Karteneinstellungen">
+    <div class="grab"></div>
+    <div class="shead"><h2>Karte</h2><button class="close" data-close>Fertig</button></div>
+    <div id="edForm"></div>
+  </div></div>
   <div class="sheetwrap" id="buildWrap"><div class="bsheet" role="dialog" aria-label="Bauen">
     <div class="grab"></div>
     <div class="shead"><h2>Bauen</h2><button class="close" data-close>Schließen</button></div>
@@ -83,6 +92,9 @@
   <ol id="mlist"></ol>
   <h3>Endlos</h3>
   <button class="btn" id="free">Freies Spiel auf zufälliger Karte</button>
+  <h3>Eigene Karten</h3>
+  <div class="row"><button class="btn" id="edNew">🛠️ Kartenschmiede</button><button class="btn" id="edImport">Karte aus Datei</button><input type="file" id="edFile" accept=".json,application/json" hidden></div>
+  <ul id="mymaps" class="slots"></ul>
   <h3>Spielstände</h3>
   <ul id="slots"></ul>
   <div class="row"><button class="btn" id="openSettings">⚙️ Einstellungen</button></div>
@@ -120,11 +132,13 @@
 <script src="js/combat.js"></script>
 <script src="js/units.js"></script>
 <script src="js/events.js"></script>
+<script src="js/maps.js"></script>
 <script src="js/settings.js"></script>
 <script src="js/audio.js"></script>
 <script src="js/render.js"></script>
 <script src="js/ui.js"></script>
 <script src="js/tutorial.js"></script>
+<script src="js/editor.js"></script>
 <script src="js/pwa.js"></script>
 </body>
 </html>

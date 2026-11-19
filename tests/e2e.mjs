@@ -50,6 +50,11 @@ for (const [name, viewport] of VIEWS) {
     await page.locator('#mBtns .btn').last().click();
     await page.evaluate(() => { S.res.holz = 100; S.res.stein = 50; for (let r = KR + 1; r < ROWS; r++) for (let c = 0; c < COLS; c++) if (!count('markt') && !reason('markt', r, c)) act('markt', r, c, true); });
     await page.locator('#openCourt').click(); await page.evaluate(() => $('marketH').scrollIntoView()); await page.waitForTimeout(200); await shot('markt'); await page.locator('#courtWrap [data-close]').click();
+    // Etappe 5: Angriffsmission Rabenfels und Kartenschmiede
+    await page.evaluate(() => { newGame(9); closeModal(); setSpeed(0); const f = S.fort; ox += (padL + (vw - padL - padR) / 2) - sx(f.c + .5, f.r + .5); oy += (padT + (vh - padT - padB) / 2) - sy(f.c + .5, f.r + .5); clampCam(); }); await page.waitForTimeout(400); await shot('rabenfels');
+    await page.evaluate(() => { openMenu(); edOpen(); }); await page.waitForTimeout(500); await shot('kartenschmiede');
+    await page.locator('#edSet').click(); await page.waitForTimeout(300); await shot('kartenschmiede-einstellungen'); await page.locator('#edWrap [data-close]').click();
+    await page.evaluate(() => { edLeave(); openMenu(); $('mymaps').scrollIntoView(); }); await page.waitForTimeout(200); await shot('eigene-karten');
     if (errors.length) { bad++; console.error(name, errors); } else console.log('✓', name, 'ohne Konsolenfehler');
     await ctx.close();
   }

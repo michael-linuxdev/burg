@@ -156,4 +156,40 @@ t('Migration: Version 4 bekommt Eisen und Ereignisse', () => {
   const g = fresh(); const o = g.run('(()=>{const o=JSON.parse(JSON.stringify(S));o.ver=4;delete o.ev;o.grid.forEach(t=>{if(t.t===IRON)t.t=GRASS});return o})()');
   g.ctx.__o = o; const m = g.run('migrate(__o)'); eq([m.ver, typeof m.ev, m.grid.some(t => t.t === 6)], [g.run('SAVE_VER'), 'object', true]);
 });
+// ---------- Etappe 5: Belagerung, Kampagne, Kartenschmiede ----------
+t('Kampagne: 10 Missionen, ab Mission 6 große Karten', () => {
+  const g = fresh(); eq(g.run('MISSIONS.length'), 10);
+  g.run('startGame(5)'); eq(g.run('[COLS,ROWS]'), [20, 28]); g.run('startGame(7)'); eq(g.run('S.day'), 14);
+});
+t('Rabenfels: Burg mit Tor zur eigenen Seite, Verteidiger zählen nicht als Welle', () => {
+  const g = fresh(); g.run('startGame(9)');
+  eq(g.run('[count("fkeep"),count("ftor"),count("fturm")>=6,S.foeDown]'), [1, 1, true, false]);
+  eq(g.run('S.grid.findIndex(t=>t.b&&t.b.type==="ftor")'), g.run('(S.fort.r+3)*COLS+S.fort.c'));
+  eq(g.run('S.enemies.every(e=>e.def&&e.w===-1)&&S.enemies.length>0'), true); g.run('update(.05)'); eq(g.run('S.raidActive'), false);
+  eq(g.run("reason('abriss',S.fort.r,S.fort.c)"), 'Hier steht nichts zum Abreißen.');
+});
+t('Belagerungsgerät braucht eine Werkstatt, Rammbock bricht das Tor', () => {
+  const g = fresh(); g.run('startGame(9)'); g.run('S.res.holz=999;S.res.stein=999;S.res.gold=999;S.pop=40;act("kaserne",KR-2,KC+2,true);assignWorkers()');
+  eq(g.run("recruit('sram')"), 'Erst eine Belagerungswerkstatt bauen'); g.run('act("werkstatt",KR-2,KC-2,true)'); eq(g.run("recruit('sram')"), '');
+  const gate = g.run('S.grid.findIndex(t=>t.b&&t.b.type==="ftor")');
+  g.run(`(()=>{const u=S.units[0],i=${gate}+COLS;u.i=i;u.x=i%COLS+.5;u.y=(i/COLS|0)+.5;u.path=[];S.enemies=[];orderAttackB([u],${gate})})()`);
+  for (let k = 0; k < 40 && g.run(`!!S.grid[${gate}].b`); k++) g.run('for(let i=0;i<20;i++)updateUnits(.05)');
+  eq(g.run(`S.grid[${gate}].b`), null, 'Tor zerstört'); g.run('ensure()'); eq(g.run(`groundOk(${gate})`), true, 'Durchgang frei');
+});
+t('Bogenschützen greifen keine Mauern an, Bergfried zerstört gewinnt', () => {
+  const g = fresh(); g.run('startGame(9)'); g.run('S.res.gold=99;S.res.bogen=5;S.pop=40;S.res.holz=99;S.res.stein=99;act("kaserne",KR-2,KC+2,true);assignWorkers();recruit("archer")');
+  eq(g.run('orderAttackB(S.units,S.fort.r*COLS+S.fort.c)'), 0);
+  g.run('const b=S.grid[S.fort.r*COLS+S.fort.c].b;b.hp=1;S.units[0].type="sword";S.units[0].tgtB=S.fort.r*COLS+S.fort.c;const i=(S.fort.r+1)*COLS+S.fort.c;S.units[0].i=i;S.units[0].x=S.fort.c+.5;S.units[0].y=S.fort.r+1.5;S.units[0].path=[];S.units[0].cd=0;updateUnits(.05)');
+  eq(g.run('[S.foeDown,S.won,S.enemies.every(e=>e.hp<=0)]'), [true, true, true]);
+});
+t('Kartenformat: Lauflängen, Prüfung und Rundreise', () => {
+  const g = fresh(); eq(g.run('rleEncode([0,0,0,1,1,6])'), '0*3.1*2.6*1'); eq(g.run('rleDecode("0*3.1*2.6*1",6)'), [0, 0, 0, 1, 1, 6]); eq(g.run('rleDecode("0*3",4)'), null);
+  g.run('startGame(-1,{size:"mittel",seed:5})');
+  const m = g.run('mapFromState({n:"Test",s:"",res:{...BASE,holz:77},pop:12,goals:[["pop",30],["xyz",3]],raid:{start:9,every:6,scale:1.2,fire:2,ram:99,ladder:99,archer:99},events:false})');
+  g.ctx.__m = m; const v = g.run('validateMap(__m)'); eq([v.cols, v.rows, v.res.holz, v.goals, v.events], [20, 28, 77, 'pop'.split(',').map(x => [x, 30]), false], 'ungültiges Ziel entfernt');
+  eq(g.run('validateMap({v:1,cols:12,rows:20,kr:5,kc:5,t:"0*10"})'), null, 'falsche Feldzahl');
+  g.ctx.__v = v; g.run('startGame(CUSTOM,{map:__v})'); eq(g.run('[S.mi,COLS,ROWS,KR,KC,mission().n,S.res.holz,S.pop,S.grid[KI].b.type]'), [-2, 20, 28, v.kr, v.kc, 'Test', 77, 12, 'keep']);
+  eq(g.run('JSON.stringify(S.grid.map(t=>t.t))===JSON.stringify(customGrid(__v).map(t=>t.t))'), true);
+  g.run('S.pop=30;checkWin()'); eq(g.run('[S.won,getProg().done.includes(-2)]'), [true, false], 'eigene Karten zählen nicht zur Kampagne');
+});
 if (failed) { console.error(`✗ ${failed} Logik-Test(s) fehlgeschlagen`); process.exitCode = 1; } else console.log('Logik-Tests bestanden');

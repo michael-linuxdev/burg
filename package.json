@@ -11,10 +11,11 @@
     "tutorial": "node tests/tutorial.mjs",
     "troops": "node tests/troops.mjs",
     "world": "node tests/world.mjs",
+    "editor": "node tests/editor.mjs",
     "e2e": "node tests/e2e.mjs test-results",
     "sim": "node tools/sim.mjs",
     "balance": "node tools/sim.mjs all 20 --check",
-    "test": "npm run check && npm run logic && npm run balance && npm run smoke && npm run tutorial && npm run troops && npm run world"
+    "test": "npm run check && npm run logic && npm run balance && npm run smoke && npm run tutorial && npm run troops && npm run world && npm run editor"
   },
   "devDependencies": {
     "playwright": "1.63.0"

@@ -13,7 +13,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-export const LOGIC = ['data.js', 'core.js', 'economy.js', 'combat.js', 'units.js', 'events.js'];
+export const LOGIC = ['data.js', 'core.js', 'economy.js', 'combat.js', 'units.js', 'events.js', 'maps.js'];
 
 // Neuen, isolierten Spielkontext erzeugen. Math.random wird durch einen Seed-Zufall ersetzt (reproduzierbar).
 export function makeGame(seed = 1) {
@@ -76,6 +76,9 @@ function bot(g) {
   if (foodDay < wantFood && build('obst')) return;
   if (raids && cnt('stein') < (ram ? 3 : 2) && S.day > 5 && build('stein', false)) return;
   if (cnt('holzf') < 3 && S.day > 8 && build('holzf', false)) return;
+  // Ab Mission 6 (große Karten): Kaserne und Werkstätten vor dem Mauerring, Ziel Schwerter, Goldüberschuss in Truppen,
+  // Belagerung. Missionen 1–5 bleiben davon unberührt, damit ihr Balancing gleich bleibt.
+  if (S.mi >= 5 && late(g)) return;
   if (raids) {
     // Mauerring mit Tor im Süden und Türmen an den Ecken
     for (let r = KR - R; r <= KR + R; r++) for (let c = KC - R; c <= KC + R; c++) {
@@ -106,6 +109,56 @@ function bot(g) {
   for (const t of S.grid) if (t.b && t.b.burn && S.res.gold >= 2) { S.res.gold -= 2; t.b.burn = 0; }
 }
 
+function late(g) {
+  const { G } = g, S = G.S, B = G.B, m = G.mission(), cnt = k => G.count(k), COLS = G.COLS;
+  const build = (k, inside = true) => { if (!G.has(B[k].cost)) return false; let best = null, bd = 1e9;
+    g.run('ensure()'); const reach = G.reach;// nur Felder, die deine Leute erreichen (nicht hinter dem Fluss)
+    for (let r = 0; r < G.ROWS; r++) for (let c = 0; c < COLS; c++) { if (G.reason(k, r, c) || !reach[r * COLS + c]) continue; if (Math.max(Math.abs(r - G.KR), Math.abs(c - G.KC)) === 3) continue; const d = Math.hypot(r - G.KR, c - G.KC); if (d < bd) { bd = d; best = [r, c]; } }
+    return !!best && !!G.act(k, best[0], best[1], true); };
+  const units = t => S.units.filter(u => u.type === t);
+  if (cnt('stein') < 2 && S.day > 3 && build('stein', false)) return true;
+  if (S.res.holz < 50 && cnt('holzf') < 7 && S.day > 4 && build('holzf', false)) return true;
+  if (m.raid && cnt('kaserne') < 1 && S.day > 4 && build('kaserne')) return true;
+  if (m.fort && cnt('kaserne') && cnt('werkstatt') < 1) { build('werkstatt'); return true; }
+  if (m.goals.some(x => x[0] === 'schwert')) {
+    if (cnt('mine') < 1) { if (build('mine', false)) return true; }
+    else if (cnt('schmied') < 1) { build('schmied'); return true; }
+    for (const t of S.grid) if (t.b && t.b.type === 'schmied') t.b.mode = 'schwert';
+    if (cnt('mine') && cnt('mine') < 2 && S.res.holz > 60 && build('mine', false)) return true;
+  }
+  if (m.raid) {
+    if (S.res.gold > 150 && cnt('markt') < 1 && build('markt')) return true;
+    if (cnt('markt') && S.res.gold > 110 && S.res.bogen < 2) g.run("trade('bogen',1)");
+    while (S.idle > 2 && S.res.gold >= 12 + 40 && S.units.length < 9 + cnt('turm') * 3 && !g.run('recruit()'));
+    // großes Goldpolster: Bögen am Markt kaufen und weitere Schützen ausbilden
+    for (let k = 0; k < 4 && S.res.gold > 160 && S.idle > 3; k++) { if (S.res.bogen < 1 && cnt('markt')) g.run("trade('bogen',1)"); if (g.run('recruit()')) break; }
+  }
+  if (m.fort && !S.foeDown) siegeBot(g);
+  return false;
+}
+// Belagerung: Katapulte schleifen die Türme am Tor, dann Rammböcke und Nahkämpfer ans Tor, danach auf Wachen und Bergfried
+function siegeBot(g) {
+  const { G } = g, S = G.S, B = G.B, cnt = k => G.count(k), COLS = G.COLS, N = G.N;
+  if (cnt('kaserne') && cnt('werkstatt') < 1) { let best = null, bd = 1e9; for (let r = 0; r < G.ROWS; r++) for (let c = 0; c < COLS; c++) if (!G.reason('werkstatt', r, c)) { const d = Math.hypot(r - G.KR, c - G.KC); if (d < bd && Math.max(Math.abs(r - G.KR), Math.abs(c - G.KC)) !== 3) { bd = d; best = [r, c]; } } if (best) G.act('werkstatt', best[0], best[1], true); }
+  const n = t => S.units.filter(u => u.type === t).length;
+  if (cnt('werkstatt')) { if (n('kat') < 3) g.run("recruit('kat')"); if (n('sram') < 2) g.run("recruit('sram')"); }
+  for (const t of ['knight', 'sword', 'spear']) if (S.idle > 2 && S.res.gold > 60) g.run(`recruit('${t}')`);
+  if (n('kat') < 2) return;
+  const foe = k => { const l = []; for (let i = 0; i < N; i++) { const b = S.grid[i].b; if (b && b.type === k) l.push(i); } return l; };
+  const gate = foe('ftor')[0], keep = foe('fkeep')[0], f = S.fort, gr = gate != null ? (gate / COLS | 0) : f.r + 3;
+  const near = foe('fturm').filter(i => Math.abs((i / COLS | 0) - gr) <= 1).sort((a, b) => Math.abs(a % COLS - f.c) - Math.abs(b % COLS - f.c));
+  const idle = u => u.tgtB == null && !u.tgt && !u.path.length;
+  g.ctx.__l = S.units.filter(u => u.type === 'kat' && idle(u)); g.ctx.__t = near.length ? near[0] : gate != null ? gate : keep; g.run('orderAttackB(__l,__t)');
+  if (near.length) return;
+  const melee = S.units.filter(u => (u.type === 'sram' || G.UNIT[u.type].reach) && idle(u));
+  const guards = S.enemies.filter(e => e.def && e.hp > 0 && !e.fixed);
+  if (gate != null) { g.ctx.__l = melee; g.ctx.__t = gate; g.run('orderAttackB(__l,__t)'); return; }
+  g.ctx.__l = melee.filter(u => u.type === 'sram'); g.ctx.__t = keep; g.run('orderAttackB(__l,__t)');
+  const fighters = melee.filter(u => u.type !== 'sram');
+  if (guards.length) { g.ctx.__l = fighters; g.ctx.__e = guards[0]; g.run('orderAttack(__l,__e)'); }
+  else { g.ctx.__l = fighters; g.ctx.__t = keep; g.run('orderAttackB(__l,__t)'); }
+}
+
 export function playMission(mi, seed, { maxDays = 160, dt = 0.05, verbose = false, until = 0, setup = '' } = {}) {
   const g = makeGame(seed);
   g.run(`startGame(${mi})`);
@@ -133,7 +186,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const list = arg === 'all' ? [...Array(n).keys()] : arg.split(',').map(Number);
   const check = process.argv.includes('--check');
   // Zielbereiche der Siegquote je Mission (für --check, z. B. in CI)
-  const TARGET = { 0: [.9, 1], 1: [.9, 1], 2: [.9, 1], 3: [.8, 1], 4: [.5, .9] };
+  const TARGET = { 0: [.9, 1], 1: [.9, 1], 2: [.9, 1], 3: [.8, 1], 4: [.5, .9], 5: [.8, 1], 6: [.8, 1], 7: [.7, 1], 8: [.5, .9], 9: [.5, .9] };
   let bad = 0;
   console.log('Mission                      Siege   Ø Tage   Ø Einw.  Ø Gold  max Gold  min Bergfried');
   for (const mi of list) {
