@@ -10,24 +10,44 @@ Läuft als installierbare PWA (offline spielbar). Auf dem Handy im Browser öffn
 
 | Datei | Inhalt |
 |---|---|
-| `index.html` | Grundgerüst der Seite, lädt CSS und Skripte, registriert den Service Worker |
+| `index.html` | Grundgerüst der Seite, lädt CSS, Schriften und Skripte |
 | `css/style.css` | Gesamtes Layout inkl. Hell/Dunkel, Hoch- und Querformat |
-| `js/game.js` | Daten (Gebäude, Missionen), Kartengenerator, Wirtschaft, Jahreszeiten, Kampf, Speichern |
+| `fonts/` | Selbst gehostete Schriften (Pirata One, Alegreya Sans) mit OFL-Lizenztexten |
+| `js/data.js` | Spieldaten: Gebäude, Feinde, Missionen, Steuern, Rationen |
+| `js/core.js` | Spielzustand, Kartengenerator, Wegfindung, Bauen, Arbeiter, Speichern |
+| `js/economy.js` | Tageslauf: Produktion, Essen, Beliebtheit, Bevölkerung, Ziele |
+| `js/combat.js` | Echtzeit: Angriffswellen, Feinde, Feuer, Bogenschützen |
 | `js/render.js` | Canvas-Grafik: Gelände, Gebäude, Figuren, Partikel, Tag/Nacht, Wetter |
-| `js/ui.js` | Kamera und Gesten (Pinch-Zoom), Statusleiste, Bau- und Hof-Menü, Dialoge, Hauptschleife |
+| `js/ui.js` | Kamera und Gesten, Statusleiste, Menüs, Dialoge, Hauptschleife |
+| `js/pwa.js` | Service Worker anmelden, Hinweis „Neue Version verfügbar“ |
 | `sw.js` | Service Worker, macht die App offline verfügbar |
 | `manifest.webmanifest` | PWA-Manifest |
-| `icons/` | App-Icons (aus der Bergfried-Grafik des Spiels erzeugt) |
+| `icons/` | App-Icons |
+| `docs/DESIGN.md` | Alle Spielregeln, Zahlen und Formeln (Grundlage für die Unity-Portierung) |
+| `tests/` | Playwright-Smoke-Test (CI) und Screenshot-Test |
 | `CNAME` | Eigene Domain für GitHub Pages |
+
+Die Spiellogik (`data`, `core`, `economy`, `combat`) greift nicht auf das DOM zu und läuft auch headless in Node.
 
 Kein Build-Schritt: Die Dateien werden direkt von GitHub Pages ausgeliefert.
 
 ## Lokal starten
 
 ```bash
-python3 -m http.server 8080
+python3 -m http.server 8080      # oder: npm run serve
 # dann http://localhost:8080 öffnen
 ```
+
+## Testen
+
+```bash
+npm install                      # einmalig, holt Playwright
+npx playwright install chromium  # einmalig
+npm test                         # Syntaxprüfung + Smoke-Test
+npm run e2e                      # Screenshots aller Ansichten nach test-results/
+```
+
+Die GitHub Action `.github/workflows/ci.yml` führt Syntaxprüfung und Smoke-Test bei jedem Push auf `main` und bei Pull Requests aus.
 
 Der Service Worker läuft nur über `http(s)`, nicht über `file://`.
 
@@ -35,7 +55,7 @@ Der Service Worker läuft nur über `http(s)`, nicht über `file://`.
 
 1. GitHub Pages aktivieren: *Settings → Pages → Deploy from a branch → `main` / root*.
 2. Custom Domain `burg.micana.de` eintragen (steht bereits in `CNAME`) und „Enforce HTTPS“ aktivieren.
-3. Beim DNS-Anbieter von `micana.de` einen CNAME-Eintrag anlegen: `burg` → `<github-benutzername>.github.io`.
+3. Beim DNS-Anbieter von `micana.de` einen CNAME-Eintrag anlegen: `burg` → `michael-linuxdev.github.io`.
 
 ## Updates ausliefern
 
