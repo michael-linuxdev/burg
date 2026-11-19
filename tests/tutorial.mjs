@@ -65,14 +65,15 @@ try {
   const { ctx, page, errors } = await openPage(browser, srv.url, { width: 390, height: 844 });
   await startMission(page, 0);
   await page.locator('#coachSkip').click();
-  await page.evaluate(() => { S.day = 9; });
+  await page.evaluate(() => { S.day = SLEN + 2; }); // ein Tag im Sommer
+  const day = await page.evaluate(() => S.day);
   await page.locator('#menuBtn').click();
   await page.locator('#slots li').nth(2).locator('button', { hasText: 'Speichern' }).click();
   const txt = await page.locator('#slots li').nth(2).textContent();
-  if (!/Tag 9/.test(txt) || !/Herbst|Sommer/.test(txt)) fail('Spielstand-Vorschau falsch: ' + txt); else ok('Speicherplatz 2 mit Vorschau: ' + txt.replace(/\s+/g, ' ').slice(0, 70));
+  if (!txt.includes('Tag ' + day) || !/Sommer/.test(txt)) fail('Spielstand-Vorschau falsch: ' + txt); else ok('Speicherplatz 2 mit Vorschau: ' + txt.replace(/\s+/g, ' ').slice(0, 70));
   await page.evaluate(() => { S.day = 1; });
   await page.locator('#slots li').nth(2).locator('button', { hasText: 'Laden' }).click();
-  if ((await page.evaluate(() => S.day)) !== 9) fail('Laden aus Platz 2 fehlgeschlagen'); else ok('Laden aus Platz 2');
+  if ((await page.evaluate(() => S.day)) !== day) fail('Laden aus Platz 2 fehlgeschlagen'); else ok('Laden aus Platz 2');
   await page.locator('#menuBtn').click(); await page.locator('#openSettings').click();
   await page.locator('#qualseg button', { hasText: 'Niedrig' }).click();
   await page.locator('#setClose').click(); await page.locator('#cont').click(); await page.waitForTimeout(500);
