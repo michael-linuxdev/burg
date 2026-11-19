@@ -20,6 +20,7 @@ Läuft als installierbare PWA (offline spielbar). Auf dem Handy im Browser öffn
 | `js/units.js` | Eigene Truppen: Einheiten, Wegfindung über Mauern, Befehle, Kampf |
 | `js/maps.js` | Kartenformat der Kartenschmiede (Lauflängen-Gelände, Prüfung, eigene Karten als Mission) |
 | `js/editor.js` | Kartenschmiede: Gelände malen, Einstellungen, Testen, Teilen als Link oder Datei |
+| `js/playlog.js` | Spielprotokoll für Playtests (lokal, im Menü ansehen, kopieren, als Datei speichern, Notizen) |
 | `js/events.js` | Ereignisse (Seuche, Missernte, Wölfe, Blitz, Händler, Turnier, Festtag) und Markt |
 | `js/settings.js` | Einstellungen (Lautstärken, Grafikstufe, Starttempo, Vibration, Tutorial) |
 | `js/audio.js` | Prozedurale Musik und Geräusche (Web Audio API, keine Audiodateien) |

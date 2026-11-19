@@ -313,6 +313,8 @@ Die Darstellung darf den Zustand nur über die Logik-Funktionen ändern (`act`, 
 
 Nacht: Abdunklung höchstens 48 % (einfache Grafikstufe 40 %), Lichtquellen schneiden Lichtkegel heraus. Mauern verbinden sich optisch nicht mit dem Bergfried; der Bergfried wird nach den übrigen Gebäuden seiner Reihe gezeichnet.
 
+Spielprotokoll (`js/playlog.js`, reine Darstellung): umhüllt Logik-Funktionen (`startGame`, `act`, `recruit`, `order…`, `trade`, `resolveEvent`, `dayTick`, `spawnWave` …) und `H.say/won/lost`, ohne ihr Verhalten zu ändern, und schreibt Einträge `[Zeit, Tag, Art, Text]` nach `localStorage['zinnenwerk-playlog']` (höchstens 4000, älteste fallen weg). Dazu alle 15 s die Bildrate, Fehler und eigene Notizen. Abschaltbar in den Einstellungen.
+
 Das HUD (Statusleiste) ist reine Darstellung. Hochformat kompakt in drei schmalen Zeilen: Tagesmedaille mit Fortschrittsring und Tempo; Ressourcen-Plaketten als wischbare Zeile (gold umrandet ab 90 % Lagerfüllung, rot bei Verfall); Einwohner, Beliebtheitsleiste, Auftrag (Symbol, Leiste, Zahl) und Angriffs-Plakette. „▾“ klappt alles aus (alle Ressourcen, Zielbeschreibungen, freie Leute). Der Berater sitzt als Porträt unter der Leiste; seine Sprechblase öffnet sich bei jedem neuen Hinweis für 7 s, Antippen öffnet oder schließt sie. Quer und am Desktop steht alles in der 250 px breiten Seitenleiste. Meldungen erscheinen als Banner; Farbe nach Art (Gefahr rot, Erfolg grün).
 
 ## 11. Balancing

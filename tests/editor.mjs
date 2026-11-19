@@ -60,6 +60,23 @@ try {
   if (tg.length !== 2 || !tg.every(Boolean)) fail('Rabenfels: Angriffsbefehl auf das Tor ' + JSON.stringify(tg)); else ok('Rabenfels: Rammbock und Katapult greifen das Tor an');
   if (errors.length) fail('Rabenfels: Konsolenfehler: ' + errors.join(' | '));
   await ctx.close();
+  // Spielprotokoll: Start, Bau, Tageszusammenfassung, Notiz, Export
+  {
+    const { ctx, page, errors } = await openPage(browser, srv.url, { width: 390, height: 844 }, { acceptDownloads: true });
+    await page.evaluate(() => brief(2)); await page.locator('#mBtns .btn.primary').click();
+    await page.evaluate(() => { S.res.holz = 99; for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) if (!count('holzf') && !reason('holzf', r, c)) act('holzf', r, c, false); S.clock = DAY - .01; });
+    await page.waitForTimeout(400);
+    await page.evaluate(() => openMenu()); await page.locator('#openPlaylog').click();
+    await page.locator('#mBtns .btn', { hasText: 'Notiz' }).click(); await page.locator('#plNoteTxt').fill('Holzfäller fühlt sich gut an'); await page.locator('#mBtns .btn.primary').click();
+    const txt = await page.locator('#plogView').textContent();
+    const need = ['Start: Mission 3', 'Bau: Holzfäller', 'Tag 2:', 'Notiz (Mission 3', 'Sitzung:'];
+    const miss = need.filter(n => !txt.includes(n));
+    if (miss.length) fail('Spielprotokoll: fehlt ' + miss.join(', ') + '\n' + txt.slice(-600)); else ok('Spielprotokoll: Start, Bau, Tageszusammenfassung und Notiz erfasst');
+    const dl = page.waitForEvent('download'); await page.locator('#mBtns .btn', { hasText: 'Als Datei' }).click(); const f = await dl;
+    const body = fs.readFileSync(await f.path(), 'utf8'); if (!body.includes('Holzfäller fühlt sich gut an')) fail('Spielprotokoll: Export'); else ok('Spielprotokoll: Export als Textdatei');
+    if (errors.length) fail('Spielprotokoll: Konsolenfehler: ' + errors.join(' | '));
+    await ctx.close();
+  }
 } catch (e) { fail(e.stack || e.message); }
 await browser.close(); srv.close();
 if (process.exitCode) console.error('Kartenschmiede-Test fehlgeschlagen'); else console.log('Kartenschmiede-Test bestanden');
