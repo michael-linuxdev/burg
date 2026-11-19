@@ -1,7 +1,7 @@
 // Zinnenwerk – Service Worker: App-Shell offline verfügbar machen.
 // Bei jeder Änderung an Spieldateien VERSION erhöhen und neue Dateien in SHELL aufnehmen,
 // damit Spieler das Update bekommen. Ein neuer Worker wartet, bis der Spieler „Aktualisieren“ tippt.
-const VERSION = 'zinnenwerk-v5.1.0';
+const VERSION = 'zinnenwerk-v5.2.0';
 const SHELL = [
   './',
   'index.html',
@@ -15,8 +15,11 @@ const SHELL = [
   'js/core.js',
   'js/economy.js',
   'js/combat.js',
+  'js/settings.js',
+  'js/audio.js',
   'js/render.js',
   'js/ui.js',
+  'js/tutorial.js',
   'js/pwa.js',
   'manifest.webmanifest',
   'icons/icon-192.png',
