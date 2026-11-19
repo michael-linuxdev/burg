@@ -64,6 +64,12 @@ function bot(g) {
   if (cnt('holzf') < 2 && build('holzf', false)) return;
   if (pop >= G.cap() - 3 && build('haus')) return;
   if (raids && cnt('stein') < 1 && build('stein', false)) return;
+  // Lager erweitern, wenn eine Lagerart fast voll ist
+  const full = kind => Object.keys(G.STORE).some(k => G.STORE[k] === kind && S.res[k] >= G.storeCap(kind) * .85);
+  if (full('lager') && build('lager')) return;
+  if (full('korn') && build('korn')) return;
+  if (raids && cnt('kaserne') && cnt('bogner') < 1 && build('bogner')) return;
+  if (cnt('bogner') && full('waffen') && cnt('ruest') < 1 && build('ruest')) return;
   if ((m.goals.some(x => x[0] === 'brot') || pop > 24) && cnt('farm') < 1 && build('farm')) return;
   if (cnt('farm') && cnt('muehle') < 1 && build('muehle')) return;
   if (cnt('muehle') && cnt('baecker') < 1 && build('baecker')) return;
@@ -83,6 +89,8 @@ function bot(g) {
     if (cnt('kaserne') < 1 && build('kaserne')) return;
     // Türme in der Mitte der Seiten nachrüsten, sobald die Ecken stehen
     if (fire && cnt('brunnen') < 2 && build('brunnen')) return;
+    // Burg ausbauen, sobald der Ring steht und es bezahlbar ist
+    if (cnt('turm') >= 3 && !g.run('upgradeWhy()') && S.res.gold > 60) g.run('upgradeKeep()');
     // Bogenschützen ausbilden, Reserve 20 Gold
     while (S.idle > 1 && S.res.gold >= 12 + 15 && S.archers < 3 + cnt('turm') * 3 && !g.run('recruit()'));
   }
