@@ -27,7 +27,7 @@ Läuft als installierbare PWA (offline spielbar). Auf dem Handy im Browser öffn
 | `manifest.webmanifest` | PWA-Manifest |
 | `icons/` | App-Icons |
 | `docs/DESIGN.md` | Alle Spielregeln, Zahlen und Formeln (Grundlage für die Unity-Portierung) |
-| `tests/` | Playwright-Tests: Smoke, Tutorial/Spielstände, Screenshots |
+| `tests/` | Logik-Tests (headless) und Playwright-Tests: Smoke, Tutorial/Spielstände, Screenshots |
 | `tools/sim.mjs` | Headless-Simulation mit Bot zum Abstimmen der Missionen |
 | `CNAME` | Eigene Domain für GitHub Pages |
 
