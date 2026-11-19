@@ -62,6 +62,7 @@ Reihenfolge:
 3. **Essen**: Nahrung = Brot + Äpfel. Bedarf = `ceil(Einwohner · r)` mit `r` aus der Rationsstufe. Reicht die Nahrung nicht, sinkt die effektive Ration stufenweise. Verbraucht wird gleichmäßig über die vorhandenen Sorten (kleinster Vorrat zuerst). Abwechslung = Anzahl Sorten mit Vorrat > 0.
 4. **Brennholz** im Winter: `ceil(Einwohner / 10)` Holz pro Tag, sonst „Kälte“.
 5. **Steuern**: Gold += `round(Einwohner · g)`; Gold fällt nie unter 0. „Geschenk“ schaltet automatisch auf „Keine“, wenn das Gold nicht mehr für einen Tag reicht.
+   **Sold**: danach `ceil(Bogenschützen · 1)` Gold (`SOLD`). Reicht das Gold nicht, wird es auf 0 gesetzt und „Sold nicht bezahlt“ (−3 Beliebtheit) gilt bis zum nächsten bezahlten Tag.
 6. **Beliebtheit** (0–100): `pp += 0,5 · Σ Faktoren`.
 7. **Bevölkerung**: bei pp ≥ 50 Zuzug +1 (bei pp ≥ 75 +2) bis zur Kapazität; bei pp < 50 Wegzug −1 (bei pp < 25 −2), nie unter die Zahl der Bogenschützen. Kapazität = `12 + 8 · Hütten`.
 8. **Angriffsplan** (siehe 7.) und Siegprüfung, dann automatisch speichern.
@@ -79,12 +80,12 @@ Reihenfolge:
 |---|---|---|
 | Geschenk | −0,4 | +3 |
 | Keine | 0 | +1 |
-| Niedrig | 0,6 | −2 |
-| Mittel | 1,0 | −4 |
-| Hoch | 1,5 | −7 |
+| Niedrig | 0,5 | −2 |
+| Mittel | 0,8 | −4 |
+| Hoch | 1,2 | −7 |
 
 ### Beliebtheitsfaktoren
-Ration (oben), Abwechslung beim Essen (+2 bei ≥ 2 Sorten), Steuer (oben), Kapellen (+2 je Kapelle, max. 3), Angst nach Bränden (−3 für 3 Tage nach einem abgebrannten Gebäude), Kälte ohne Brennholz (−4).
+Ration (oben), Abwechslung beim Essen (+2 bei ≥ 2 Sorten), Steuer (oben), Kapellen (+2 je Kapelle, max. 3), Sold nicht bezahlt (−3), Angst nach Bränden (−3 für 3 Tage nach einem abgebrannten Gebäude), Kälte ohne Brennholz (−4).
 
 Startwerte: Beliebtheit 60, Steuer „Niedrig“, Ration „Normal“.
 
@@ -103,7 +104,8 @@ Missionsparameter `raid = {start, every, fire, ram, scale}`:
 - Welle k: Anzahl `n = max(1, round((1 + 2k) · scale))`, Grund-LP `8 + 3k`.
 - Brandstifter ab Welle `fire`: `1 + floor((k − fire)/2)`, sie ersetzen Räuber. Rammböcke ab Welle `ram`: `1 + floor((k − ram)/2)`, zusätzlich.
 - Feinde erscheinen auf freien Grasfeldern am Rand der gemeldeten Seite, im Abstand von 0,7 s.
-- Belohnung: 3 Gold pro Feind, 8 pro Rammbock, +10 Gold je abgewehrter Welle.
+- Jeder Feind gehört zu seiner Welle (`w`). Eine Welle gilt als abgewehrt, sobald ihr letzter Feind fällt – auch wenn schon die nächste Welle angreift (Wellen können sich überlappen, z. B. Mission 5: alle 20 s).
+- Belohnung (`KILL_GOLD`, `RAM_GOLD`, `WAVE_GOLD`): 2 Gold pro Feind, 6 pro Rammbock, +10 Gold je abgewehrter Welle.
 
 | Feind | LP-Faktor | Tempo (Felder/s) | Schaden/s | Rüstung (Faktor auf Pfeilschaden) |
 |---|---|---|---|---|
@@ -116,7 +118,7 @@ Dijkstra vom Bergfried aus über Gras. Kosten: freies Gras 1, Mauerfeld `1 + LP/
 
 ### Verteidigung
 - Bergfried: 150 LP. Fällt er, ist das Spiel verloren. Zwei Wachen schießen immer (Reichweite 3,5).
-- Bogenschützen: 12 Gold, brauchen eine Kaserne und eine freie Person. Die ersten 3 stehen im Bergfried, dann je 3 pro Turm (Reichweite 4,6), der Rest im Bergfried.
+- Bogenschützen: 12 Gold (`ARCHER_GOLD`) plus 1 Gold Sold pro Tag, brauchen eine Kaserne und eine freie Person. Die ersten 3 stehen im Bergfried, dann je 3 pro Turm (Reichweite 4,6), der Rest im Bergfried.
 - Schussrate: 1 Pfeil pro Schütze und Sekunde, Ziel ist der nächste Feind in Reichweite, Schaden `3 · Rüstung`.
 
 ## 8. Ziele und Missionen
@@ -129,14 +131,20 @@ Zieltypen: `pop` (Einwohner ≥ n), `brot` (Brot auf Vorrat ≥ n), `raids` (abg
 | 2 | Brot für alle | 3307 | 60 Holz, 20 Äpfel | 14 | 40 Brot | ab Tag 10, alle 9, scale 0,6 |
 | 3 | Steinerne Wacht | 4411 | 50 Holz, 20 Stein, 20 Äpfel, 80 Gold | 14 | 3 Wellen | ab 7, alle 6 |
 | 4 | Flammen im Tal | 5519 | 60 Holz, 20 Stein, 20 Äpfel, 100 Gold | 16 | 4 Wellen, 50 Beliebtheit | ab 7, alle 6, Brandstifter ab Welle 1 |
-| 5 | Die Belagerung | 6623 | 80 Holz, 40 Stein, 10 Brot, 20 Äpfel, 150 Gold | 18 | 5 Wellen | ab 8, alle 5, Brandstifter und Rammböcke ab Welle 2, scale 1,2 |
+| 5 | Die Belagerung | 6623 | 80 Holz, 40 Stein, 10 Brot, 20 Äpfel, 150 Gold | 18 | 5 Wellen | ab 8, alle 5, Brandstifter und Rammböcke ab Welle 2, scale 1,4 |
 | – | Freies Spiel | zufällig | Basis + 5 Brot | 10 | – | ab 8, alle 7, Brand ab 3, Ramm ab 5 |
 
 ## 9. Speichern
 
-- Laufendes Spiel: `localStorage['zinnenwerk-v3']` (kompletter Zustand `S` als JSON), nach jedem Tag und jeder Welle.
+- Automatischer Spielstand: `localStorage['zinnenwerk-auto']`, nach jedem Tag, jeder Welle und beim Laden.
+- Drei feste Plätze: `zinnenwerk-slot-1` … `-3`, im Menü mit Vorschau (Mission, Tag, Jahreszeit, Zeitpunkt).
+- Jeder Stand trägt `ver` (aktuell 2) sowie `cols`, `rows`, `kr`, `kc`. `migrate()` hebt ältere Stände an: Version 1 (Schlüssel `zinnenwerk-v3`) bekommt 12 × 20 / Bergfried (11, 5), Feinde ohne Wellennummer werden der letzten Welle zugeordnet. Ein alter v3-Stand wird beim ersten Start in den automatischen Spielstand übernommen; der alte Schlüssel bleibt unangetastet.
 - Kampagnenfortschritt: `localStorage['zinnenwerk-progress'] = {done: [Missionsindizes]}`. Wird nie gelöscht.
+- Einstellungen: `localStorage['zinnenwerk-settings']` (Lautstärken, Grafikstufe, Starttempo, Vibration, Tutorial).
 - Mission n ist spielbar, wenn n = 0 oder Mission n − 1 geschafft ist.
+
+### Rückgängig
+Bis zu 20 Schritte (`UNDO_MAX`). Eine Wisch-Geste ist ein Schritt. Bauen zurücknehmen erstattet die vollen Kosten (nur wenn das Gebäude noch steht und nicht brennt); Abriss zurücknehmen stellt das Gebäude mit seinem alten Zustand wieder her und zieht die Erstattung wieder ab. Nur Aktionen von heute und gestern sind rücknehmbar, sonst ließe sich Produktion „zurückkaufen“. Der Verlauf wird nicht gespeichert.
 
 ## 10. Schnittstelle Logik ↔ Darstellung
 
@@ -152,4 +160,28 @@ Die Logik ruft nur diese Rückrufe auf (`H` in `core.js`):
 | `vibrate(muster)` | Vibration |
 | `won()`, `lost()` | Mission gewonnen bzw. Burg gefallen |
 
+Geräuschnamen für `sfx`: `bau`, `stein` (Mauerteil gesetzt), `abriss`, `feuer`, `treffer`, `ramme`, `einsturz`, `glocke` (Angriff), `sieg`, `niederlage`, `klick`. Die Darstellung ergänzt `pfeil`, `holz` und `steinbruch`.
+
 Die Darstellung darf den Zustand nur über die Logik-Funktionen ändern (`act`, `startGame`, Hof-Einstellungen in `S.tax`/`S.ration`, Ausbilden).
+
+## 11. Balancing
+
+Werkzeug: `node tools/sim.mjs [mission|all] [läufe] [--log] [--check]`. Lädt die Logikdateien headless und lässt einen einfachen Bot spielen (feste Prioritätenliste: Holzfäller, Obst, Hütten nach Bedarf, Steinbruch, Brotkette, Mauerring mit Radius 3 um den Bergfried mit Tor im Süden und Türmen an Ecken und Seitenmitten, Kaserne, Brunnen bei Brandstiftern, Schützen bis 3 + 3 je Turm mit 15 Gold Reserve; Steuer runter unter 52 Beliebtheit, rauf über 68). `--check` prüft die Zielbereiche und läuft in CI.
+
+Zielwerte: Mission 1–3 ≥ 90 % Siege, Mission 4 ≥ 80 %, Mission 5 zwischen 50 und 90 %. Gold soll im späteren Spiel knapp bleiben.
+
+Ergebnis nach Etappe 1 (30 Läufe je Mission, verschiedene Zufallsfolgen für Angriffsrichtungen):
+
+| Mission | Siege | Ø Tage | Ø Einwohner | Ø Gold am Ende | min. Bergfried-LP |
+|---|---|---|---|---|---|
+| 1 Ein neuer Anfang | 100 % | 15 | 24 | 125 | 150 |
+| 2 Brot für alle | 100 % | 11 | 21 | 99 | 150 |
+| 3 Steinerne Wacht | 100 % | 23 | 33 | 17 | 149 |
+| 4 Flammen im Tal | 100 % | 29 | 39 | 90 | 150 |
+| 5 Die Belagerung | 73 % | 38 | 49 | 269 | 66 |
+
+Änderungen in dieser Etappe und warum:
+- **Wellenzählung** (Fehlerbehebung): Vorher zählte eine Welle erst als abgewehrt, wenn gar kein Feind mehr auf der Karte war. In Mission 5 überlappen sich die Wellen, das Ziel war dadurch praktisch unerreichbar (Bot 0 %).
+- **Steuern** leicht gesenkt (0,5 / 0,8 / 1,2 statt 0,6 / 1,0 / 1,5) und **Sold** 1 Gold pro Schütze und Tag: Vorher lagen am Ende von Mission 5 über 900 Gold ungenutzt herum. Jetzt sind es rund 270, in Mission 3 ist Gold richtig knapp.
+- **Kopfgeld** gesenkt (2 statt 3, Rammbock 6 statt 8), damit Angriffe kein Goldesel sind.
+- **Mission 5** stärker (scale 1,4 statt 1,2): Mit funktionierender Wellenzählung gewann der Bot sonst 95 %; jetzt etwa drei von vier Partien, mit deutlich angeschlagenem Bergfried.
