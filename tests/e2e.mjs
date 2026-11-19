@@ -1,0 +1,38 @@
+// Ausführlicher Oberflächentest mit Screenshots (lokal): node tests/e2e.mjs [Zielordner]
+// Prüft Hoch-, Querformat und Desktop: Menü, Tag, Nacht, Winter, offene Menüs, laufender Angriff. Keine Konsolenfehler.
+import fs from 'node:fs';
+import { startServer } from './serve.mjs';
+import { chromium, openPage, startMission, buildViaUi } from './helpers.mjs';
+
+const out = process.argv[2] || 'test-results';
+fs.mkdirSync(out, { recursive: true });
+const srv = await startServer();
+const browser = await chromium.launch();
+let bad = 0;
+const VIEWS = [['hoch', { width: 390, height: 844 }], ['quer', { width: 844, height: 390 }], ['desktop', { width: 1280, height: 800 }]];
+for (const [name, viewport] of VIEWS) {
+  for (const scheme of ['light', 'dark']) {
+    const { ctx, page, errors } = await openPage(browser, srv.url, viewport, { colorScheme: scheme });
+    const shot = async n => page.screenshot({ path: `${out}/${name}-${scheme}-${n}.png` });
+    if (scheme === 'dark') { await shot('menue'); await startMission(page, 0); await shot('tag'); await ctx.close(); if (errors.length) { bad++; console.error(name, scheme, errors); } continue; }
+    await shot('menue');
+    await startMission(page, 2);
+    await page.evaluate(() => { S.res.holz = 200; S.res.stein = 200; S.res.gold = 200; });
+    for (const k of ['holzf', 'obst', 'haus', 'farm', 'kaserne', 'brunnen']) await buildViaUi(page, k).catch(e => console.warn(e.message));
+    if (await page.locator('#tDone').isVisible()) await page.locator('#tDone').click();
+    // Mauerring per Code (Wischen ist schwer automatisch zu treffen)
+    await page.evaluate(() => { for (let r = KR - 3; r <= KR + 3; r++) for (let c = KC - 3; c <= KC + 3; c++) if (Math.max(Math.abs(r - KR), Math.abs(c - KC)) === 3) { const k = (r === KR + 3 && c === KC) ? 'tor' : (Math.abs(r - KR) === 3 && Math.abs(c - KC) === 3) ? 'turm' : 'mauer'; act(k, r, c, true); } S.archers = 4; assignWorkers(); });
+    await page.waitForTimeout(800); await shot('tag');
+    await page.locator('#openBuild').click(); await page.waitForTimeout(300); await shot('baumenue'); await page.locator('#buildWrap [data-close]').click();
+    await page.locator('#openCourt').click(); await page.waitForTimeout(300); await shot('hof'); await page.locator('#courtWrap [data-close]').click();
+    await page.evaluate(() => { S.day = 4; S.clock = 3.2; }); await page.waitForTimeout(400); await shot('nacht');
+    await page.evaluate(() => { S.day = 20; S.clock = 1; }); await page.waitForTimeout(600); await shot('winter');
+    await page.evaluate(() => { S.day = 13; S.clock = 1; S.raidSide = 'Norden'; spawnWave(); }); await page.waitForTimeout(4500); await shot('angriff');
+    await page.evaluate(() => openMenu()); await page.waitForTimeout(200); await shot('menue-im-spiel');
+    if (errors.length) { bad++; console.error(name, errors); } else console.log('✓', name, 'ohne Konsolenfehler');
+    await ctx.close();
+  }
+}
+await browser.close(); srv.close();
+console.log(bad ? '✗ Fehler gefunden' : '✓ Alle Ansichten ohne Fehler', '– Screenshots in', out);
+process.exitCode = bad ? 1 : 0;

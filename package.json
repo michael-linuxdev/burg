@@ -1,0 +1,17 @@
+{
+  "name": "zinnenwerk",
+  "private": true,
+  "description": "Burgenbau-Strategiespiel als statische PWA. Kein Build-Schritt; package.json dient nur Tests und Werkzeugen.",
+  "type": "module",
+  "scripts": {
+    "check": "for f in js/*.js sw.js; do node --check \"$f\" || exit 1; done",
+    "serve": "node tests/serve.mjs 8080",
+    "smoke": "node tests/smoke.mjs",
+    "e2e": "node tests/e2e.mjs test-results",
+    "sim": "node tools/sim.mjs",
+    "test": "npm run check && npm run smoke"
+  },
+  "devDependencies": {
+    "playwright": "1.63.0"
+  }
+}
